@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Circuit Forge — Prototype (Big Frame)</title>
+<style>
+  :root {
+    --pcb-bg: #0d1f0d;
+    --grid-line: #1a3a1a;
+    --wire: #f5c518;
+    --wire-glow: #fff3b0;
+    --accent: #4fd1ff;
+    --danger: #ff5252;
+    --ok: #6bff8a;
+    --panel: #11161a;
+    --panel-2: #161d23;
+    --text: #d7e0e6;
+    --muted: #7d8a93;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: #07090b; color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* HEADER */
+  header {
+    display: flex; gap: 18px; align-items: center;
+    padding: 10px 16px; background: var(--panel);
+    border-bottom: 1px solid #000; flex-wrap: wrap;
+  }
+  header .stat { display: flex; flex-direction: column; line-height: 1.1; min-width: 90px; }
+  header .stat .label { font-size: 11px; color: var(--muted); }
+  header .stat .val { font-size: 18px; font-weight: 600; }
+  header .title { font-weight: 700; letter-spacing: .5px; margin-right: auto; color: var(--accent); }
+  .heatbar { width: 120px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin-top: 3px; }
+  .heatbar > div { height: 100%; background: linear-gradient(90deg,#3fa34d,#f5c518,#ff5252); width: 0%; transition: width .2s; }
+
+  /* MAIN */
+  main { display: flex; flex: 1; min-height: 0; }
+  #gridArea {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 40%, #0f2410, #07120a);
+    position: relative; overflow: auto; padding: 16px;
+  }
+  #boardWrap { position: relative; }
+  canvas { background: var(--pcb-bg); border: 2px solid #1f3f1f; border-radius: 4px; image-rendering: pixelated; cursor: crosshair; }
+  canvas.invalid { border-color: var(--danger); box-shadow: 0 0 12px rgba(255,82,82,.5); }
+  #hint { position:absolute; top:8px; left:8px; font-size:11px; color:var(--muted); background:rgba(0,0,0,.4); padding:4px 8px; border-radius:4px; }
+
+  /* SIDE PANEL */
+  aside { width: 320px; background: var(--panel); border-left: 1px solid #000; display: flex; flex-direction: column; }
+  .tabs { display: flex; border-bottom: 1px solid #000; }
+  .tabs button { flex: 1; padding: 10px 4px; background: var(--panel); border: none; color: var(--muted); cursor: pointer; font-size: 12px; }
+  .tabs button.active { background: var(--panel-2); color: var(--accent); border-bottom: 2px solid var(--accent); }
+  .tabcontent { flex: 1; overflow-y: auto; padding: 12px; }
+  .tabcontent h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 6px; }
+
+  .item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px; background: var(--panel-2); border-radius: 6px; margin-bottom: 6px;
+  }
+  .item .ico { width: 28px; height: 28px; border-radius: 5px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .item .meta { flex: 1; min-width: 0; }
+  .item .meta .name { font-size: 13px; font-weight: 600; }
+  .item .meta .desc { font-size: 11px; color: var(--muted); }
+  .item button {
+    background: var(--accent); color: #042b38; border: none; border-radius: 5px;
+    padding: 6px 10px; font-weight: 600; cursor: pointer; font-size: 12px;
+  }
+  .item button:disabled { background: #2a3138; color: #5a646c; cursor: not-allowed; }
+  .item.selected { outline: 1px solid var(--accent); }
+
+  .toolbar { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .toolbar button { background: var(--panel-2); color: var(--text); border:1px solid #2a3138; border-radius:5px; padding:6px 10px; cursor:pointer; font-size:12px; }
+  .toolbar button.active { background: var(--accent); color:#042b38; font-weight:600; }
+
+  .statline { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #1a2128; font-size:13px; }
+  .statline .v { font-weight:600; }
+
+  footer { background: var(--panel); border-top:1px solid #000; padding:8px 14px; display:flex; gap:12px; align-items:center; font-size:12px; min-height:40px; }
+  #eventLog { color: var(--accent); }
+  .toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background:#1b2630; border:1px solid var(--accent); color:var(--text); padding:10px 18px; border-radius:8px; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .pill { background:#1a2128; border-radius:10px; padding:2px 8px; font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="title">⚡ CIRCUIT FORGE <span class="pill">prototype</span></div>
+    <div class="stat"><span class="label">💰 자금</span><span class="val" id="hFunds">$0</span></div>
+    <div class="stat"><span class="label">⚙ 연산력</span><span class="val" id="hCompute">0 FLOPS</span></div>
+    <div class="stat"><span class="label">🌡 Heat</span><span class="val" id="hHeat">0°C</span><div class="heatbar"><div id="hHeatBar"></div></div></div>
+    <div class="stat"><span class="label">✦ Flux</span><span class="val" id="hFlux">0</span></div>
+    <div class="stat"><span class="label">🔵 BP</span><span class="val" id="hBP">0</span></div>
+  </header>
+
+  <main>
+    <div id="gridArea">
+      <div id="boardWrap">
+        <canvas id="board"></canvas>
+        <div id="hint">좌클릭 드래그: 배선 · 부품선택 후 클릭: 배치 · 우클릭: 삭제</div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="tabs">
+        <button data-tab="shop" class="active">Shop</button>
+        <button data-tab="upgrades">Upgrades</button>
+        <button data-tab="stats">Stats</button>
+      </div>
+      <div class="tabcontent" id="tabShop">
+        <div class="toolbar">
+          <button id="toolWire" class="active">🔌 배선</button>
+          <button id="toolErase">🧽 삭제</button>
+        </div>
+        <h3>Phase 1 부품</h3>
+        <div id="shopList"></div>
+        <h3>그리드</h3>
+        <div id="gridUpgrade"></div>
+      </div>
+      <div class="tabcontent" id="tabUpgrades" style="display:none"></div>
+      <div class="tabcontent" id="tabStats" style="display:none"></div>
+    </aside>
+  </main>
+
+  <footer>
+    <span id="boardLabel">Board #1 (8×8)</span>
+    <span id="eventLog">빈 기판에서 시작합니다. 배터리와 저항을 배치해 닫힌 회로를 만들어 보세요.</span>
+    <span style="margin-left:auto" class="pill" id="circuitInfo">회로: 0</span>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   Circuit Forge — Prototype "Big Frame"
+   단일 HTML / 바닐라 JS. GDD v0.2의 핵심 루프를 검증하는 골격 구현.
+   구현 범위: 그리드/배선/부품, 회로 유효성, 효율·전압·병렬·Heat 계산,
+             연산력→자금 루프, 상점/업그레이드, 세이브.
+   ========================================================================= */
+
+// ---- 부품 카탈로그 (GDD 5.2) -------------------------------------------
+const COMPONENTS = {
+  battery:  { name:'Battery',  icon:'🔋', color:'#2d6cdf', cost:50,  vl:1, vr:0, base:0, heat:2,   kind:'power'  },
+  resistor: { name:'Resistor', icon:'🟫', color:'#8a5a2b', cost:10,  vl:0, vr:1, base:2, heat:1,   kind:'output' },
+  led:      { name:'LED',      icon:'💡', color:'#f5f5f5', cost:100, vl:0, vr:1, base:7, heat:4,   kind:'output', glow:true },
+  switch:   { name:'Switch',   icon:'🔘', color:'#3fa34d', cost:30,  vl:0, vr:0, base:0, heat:0,   kind:'control' },
+  heatsink: { name:'Heatsink', icon:'🌡', color:'#9aa7b0', cost:300, vl:0, vr:0, base:0, heat:-5,  kind:'thermal' },
+};
+const SHOP_ORDER = ['battery','resistor','led','switch','heatsink'];
+
+// ---- 셀 타입 -----------------------------------------------------------
+// cell = { wire:bool, comp:string|null, on:bool }
+function newBoard(size){
+  const cells = [];
+  for(let i=0;i<size*size;i++) cells.push({ wire:false, comp:null, on:true });
+  return { size, cells, heat:0, maxHeat:100 };
+}
+
+// ---- 게임 상태 ---------------------------------------------------------
+const G = {
+  funds: 0,
+  flux: 0,
+  bp: 0,
+  totalCompute: 0,
+  computeRate: 0,
+  conductorCap: 0.95,            // 구리선 기본 (GDD 5.6)
+  board: newBoard(8),
+  gridLevel: 0,                  // 0:8x8, 1:16x16 (GDD 4.1)
+  selected: null,                // 선택된 부품 이름
+  tool: 'wire',                  // 'wire' | 'erase'
+  achievements: {},
+  fluxFirsts: {},                // 효율 마일스톤 1회 보상 추적
+};
+
+const GRID_LEVELS = [
+  { size:8,  label:'8×8',  cost:0 },
+  { size:16, label:'16×16', cost:5000 },
+];
+
+// ---- 캔버스 ------------------------------------------------------------
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+let CELL = 44; // px, 보드 크기에 따라 조정
+
+function fitCanvas(){
+  const size = G.board.size;
+  CELL = size <= 8 ? 44 : size <= 16 ? 30 : 22;
+  canvas.width = size * CELL;
+  canvas.height = size * CELL;
+}
+
+function idx(x,y){ return y*G.board.size + x; }
+function inBounds(x,y){ return x>=0 && y>=0 && x<G.board.size && y<G.board.size; }
+
+// =========================================================================
+//  회로 시뮬레이션
+//  접근: 비어있지 않은 셀들을 노드로 보고 직교 인접으로 그래프 구성.
+//  연결요소 안에 전원≥1 & 부하≥1 이 있고 사이클(폐루프)이 존재하면 유효.
+//  효율은 부품 바운딩박스 둘레(이상적 폐루프 길이) / 실제 배선 길이로 근사.
+// =========================================================================
+function analyzeCircuits(){
+  const size = G.board.size, cells = G.board.cells;
+  const occupied = (x,y)=> inBounds(x,y) && (cells[idx(x,y)].wire || cells[idx(x,y)].comp);
+  const visited = new Array(size*size).fill(false);
+  const circuits = [];
+
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    const i = idx(x,y);
+    if(visited[i] || !occupied(x,y)) continue;
+    // BFS 연결요소
+    const nodes = [];
+    const queue = [[x,y]];
+    visited[i] = true;
+    let edges = 0;
+    while(queue.length){
+      const [cx,cy] = queue.pop();
+      nodes.push([cx,cy]);
+      const neigh = [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]];
+      for(const [nx,ny] of neigh){
+        if(!occupied(nx,ny)) continue;
+        if(nx>cx || ny>cy) edges++; // 각 무방향 간선 1회만 카운트
+        const ni = idx(nx,ny);
+        if(!visited[ni]){ visited[ni]=true; queue.push([nx,ny]); }
+      }
+    }
+    circuits.push(buildCircuit(nodes, edges));
+  }
+  return circuits;
+}
+
+function buildCircuit(nodes, edges){
+  const cells = G.board.cells;
+  const comps = [];        // 부품 좌표
+  let wires = 0;
+  let powerCount = 0, loadCount = 0, switchOff = false;
+  let vlSum = 0;
+  const compCounts = {};
+  let allSwitchesOn = true;
+
+  let minX=1e9,minY=1e9,maxX=-1,maxY=-1;
+  for(const [x,y] of nodes){
+    const c = cells[idx(x,y)];
+    if(c.wire) wires++;
+    if(c.comp){
+      const def = COMPONENTS[c.comp];
+      comps.push([x,y,c.comp]);
+      compCounts[c.comp] = (compCounts[c.comp]||0)+1;
+      if(def.kind==='power'){ powerCount++; vlSum += def.vl; }
+      if(def.kind==='output'){ loadCount++; }
+      if(c.comp==='switch' && !c.on){ allSwitchesOn=false; }
+      minX=Math.min(minX,x); minY=Math.min(minY,y);
+      maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
+    }
+  }
+
+  // 폐루프 여부: 무방향 그래프에서 edges >= nodes 이면 사이클 존재
+  const hasCycle = edges >= nodes.length && nodes.length >= 4;
+
+  // 유효성 (GDD 4.4)
+  let valid = true, reason = '';
+  if(powerCount === 0){ valid=false; reason='전원 없음'; }
+  else if(loadCount === 0){ valid=false; reason='부하 없음 (단락 위험)'; }
+  else if(!hasCycle){ valid=false; reason='닫힌 루프 아님'; }
+
+  // ---- 효율 계산 (GDD 4.5) ----
+  let wireEff = 0, voltBonus = 1, parallelBonus = 1, base = 0;
+  let vl = vlSum; // 직렬 가정: 배터리 VL 합산
+  if(valid){
+    // 이상적 폐루프 길이 ≈ 부품 바운딩박스 둘레
+    const bbW = maxX-minX, bbH = maxY-minY;
+    const idealWire = Math.max(4, 2*(bbW+bbH)); // 최소 사각 루프
+    const rawRatio = wires>0 ? Math.min(1, idealWire / wires) : 1;
+    wireEff = Math.min(G.conductorCap, rawRatio);
+
+    // 전압 매칭 보너스 — 출력부품 평균 VR 대비
+    let vrSum=0, vrN=0;
+    for(const [,,name] of comps){ const d=COMPONENTS[name]; if(d.kind==='output'){ vrSum+=d.vr; vrN++; } }
+    const vr = vrN? vrSum/vrN : 1;
+    if(vl===vr) voltBonus=1;
+    else if(vl>vr) voltBonus=Math.min(1.5, 1+(vl-vr)*0.1);
+    else voltBonus=0.5;
+
+    // 병렬 보너스: 같은 종류 부품 n개 → ×(1+0.05*(n-1))
+    for(const k in compCounts){ const n=compCounts[k]; if(n>1) parallelBonus *= (1+0.05*(n-1)); }
+
+    // 부품 베이스 합산 (저항은 VL 스케일링 공식 적용 → 전압보너스 대체)
+    for(const [,,name] of comps){
+      const d = COMPONENTS[name];
+      if(name==='resistor'){
+        base += 2 * (Math.min(vl, d.vr*2) / d.vr); // GDD 5.2 스케일링
+      } else {
+        base += d.base;
+      }
+    }
+  }
+
+  return {
+    nodes, comps, wires, valid, reason, hasCycle,
+    wireEff, voltBonus, parallelBonus, base, vl,
+    allSwitchesOn, bbox:[minX,minY,maxX,maxY],
+    rate: 0, // 아래서 채움
+  };
+}
+
+// Heat modifier (GDD 4.5)
+function heatModifier(heat){
+  if(heat < 70) return 1.0;
+  if(heat <= 85) return 1.0 - (heat-70)*0.01;
+  if(heat <= 99) return 0.85 - (heat-85)*0.02;
+  return 0.57;
+}
+
+// =========================================================================
+//  메인 틱 루프
+// =========================================================================
+let circuits = [];
+let lastTick = performance.now();
+
+function tick(now){
+  const dt = Math.min(0.25, (now - lastTick)/1000);
+  lastTick = now;
+
+  circuits = analyzeCircuits();
+
+  // Heat 변화: 부품 발열 합 (활성 회로만)
+  let heatDelta = 0;
+  let totalRate = 0;
+  const hm = heatModifier(G.board.heat);
+
+  for(const c of circuits){
+    // 발열은 회로 유효/배치 여부와 무관하게 작동 중인 부품에서 발생
+    for(const [x,y,name] of c.comps){
+      const d = COMPONENTS[name];
+      if(d.heat) heatDelta += d.heat;
+    }
+    if(c.valid && c.allSwitchesOn){
+      c.rate = c.base * c.wireEff * c.voltBonus * c.parallelBonus * hm;
+      totalRate += c.rate;
+    } else {
+      c.rate = 0;
+    }
+  }
+
+  // Heat 적분 (방열판은 음수 heat로 자연 반영)
+  G.board.heat = Math.max(0, Math.min(G.board.maxHeat, G.board.heat + heatDelta*dt));
+  // 부하 없을 때 서서히 냉각
+  if(heatDelta <= 0) G.board.heat = Math.max(0, G.board.heat - 3*dt);
+
+  G.computeRate = totalRate;
+  const produced = totalRate * dt;
+  G.totalCompute += produced;
+  // 연산력 판매: 1 FLOPS = 1$/s (GDD 3.2)
+  G.funds += produced;
+
+  checkFluxMilestones();
+  render();
+  updateHUD();
+  requestAnimationFrame(tick);
+}
+
+// =========================================================================
+//  Flux 마일스톤 (GDD 3.4) — 수동 효율 보상
+// =========================================================================
+function bestEfficiency(){
+  let best = 0;
+  for(const c of circuits) if(c.valid) best = Math.max(best, c.wireEff);
+  return best;
+}
+function checkFluxMilestones(){
+  const eff = bestEfficiency();
+  const tiers = [ [0.85,3,'eff85'], [0.95,10,'eff95'], [0.98,25,'eff98'] ];
+  for(const [thr,reward,key] of tiers){
+    if(eff >= thr && !G.fluxFirsts[key]){
+      G.fluxFirsts[key]=true; G.flux += reward;
+      toast(`✦ 효율 ${Math.round(thr*100)}% 달성! Flux +${reward}`);
+      log(`효율 마일스톤 달성: ${Math.round(thr*100)}% (+${reward} Flux)`);
+    }
+  }
+}
+
+// =========================================================================
+//  렌더링
+// =========================================================================
+function render(){
+  const size = G.board.size, cells = G.board.cells;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // 격자
+  ctx.strokeStyle = '#1a3a1a'; ctx.lineWidth = 1;
+  for(let i=0;i<=size;i++){
+    ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,size*CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(size*CELL,i*CELL); ctx.stroke();
+  }
+
+  // 유효 회로의 부품 좌표 집합 (활성 표시용)
+  const activeCells = new Set();
+  let anyInvalid = false;
+  for(const c of circuits){
+    if(c.valid && c.allSwitchesOn) for(const [x,y] of c.nodes) activeCells.add(idx(x,y));
+    if(!c.valid && c.comps.length) anyInvalid = true;
+  }
+
+  // 셀 그리기
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    const c = cells[idx(x,y)];
+    const px=x*CELL, py=y*CELL;
+    const active = activeCells.has(idx(x,y));
+
+    if(c.wire){
+      ctx.strokeStyle = active ? '#f5c518' : '#7a6418';
+      ctx.lineWidth = active ? 4 : 3;
+      drawWire(x,y,px,py);
+    }
+    if(c.comp){
+      const d = COMPONENTS[c.comp];
+      ctx.fillStyle = d.color;
+      const m = CELL*0.16;
+      ctx.fillRect(px+m, py+m, CELL-2*m, CELL-2*m);
+      if(d.glow && active){
+        ctx.shadowColor='#fff7c0'; ctx.shadowBlur=18;
+        ctx.fillRect(px+m, py+m, CELL-2*m, CELL-2*m);
+        ctx.shadowBlur=0;
+      }
+      ctx.fillStyle = (c.comp==='led')?'#222':'#fff';
+      ctx.font = `${Math.floor(CELL*0.4)}px sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(d.icon, px+CELL/2, py+CELL/2+1);
+      if(c.comp==='switch'){
+        ctx.fillStyle = c.on ? '#6bff8a' : '#ff5252';
+        ctx.fillRect(px+CELL-8, py+4, 4, 4);
+      }
+    }
+  }
+
+  // Heat 오버레이
+  if(G.board.heat > 70){
+    const a = Math.min(0.4,(G.board.heat-70)/100);
+    ctx.fillStyle = `rgba(255,60,60,${a})`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
+  canvas.classList.toggle('invalid', anyInvalid);
+}
+
+function drawWire(x,y,px,py){
+  const cx=px+CELL/2, cy=py+CELL/2;
+  const cells=G.board.cells;
+  const conn=(nx,ny)=> inBounds(nx,ny) && (cells[idx(nx,ny)].wire||cells[idx(nx,ny)].comp);
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  let drew=false;
+  for(const [dx,dy] of dirs){
+    if(conn(x+dx,y+dy)){
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+dx*CELL/2, cy+dy*CELL/2); ctx.stroke();
+      drew=true;
+    }
+  }
+  if(!drew){ ctx.beginPath(); ctx.arc(cx,cy,3,0,7); ctx.stroke(); }
+}
+
+// =========================================================================
+//  입력 처리: 배선 드래그 / 부품 배치 / 삭제 / 스위치 토글
+// =========================================================================
+let dragging=false, eraseDrag=false;
+
+function cellAt(ev){
+  const r=canvas.getBoundingClientRect();
+  const x=Math.floor((ev.clientX-r.left)/CELL);
+  const y=Math.floor((ev.clientY-r.top)/CELL);
+  return inBounds(x,y)?[x,y]:null;
+}
+
+canvas.addEventListener('mousedown', ev=>{
+  const pos=cellAt(ev); if(!pos) return;
+  const [x,y]=pos; const cell=G.board.cells[idx(x,y)];
+
+  if(ev.button===2){ eraseDrag=true; eraseCell(x,y); return; }
+
+  // 스위치 토글
+  if(cell.comp==='switch'){ cell.on=!cell.on; log(`Switch ${cell.on?'ON':'OFF'}`); return; }
+
+  if(G.tool==='erase'){ eraseDrag=true; eraseCell(x,y); return; }
+
+  if(G.selected){
+    placeComponent(x,y,G.selected);
+    return;
+  }
+  // 배선 모드
+  dragging=true; placeWire(x,y);
+});
+
+canvas.addEventListener('mousemove', ev=>{
+  const pos=cellAt(ev); if(!pos) return;
+  const [x,y]=pos;
+  if(eraseDrag) eraseCell(x,y);
+  else if(dragging && !G.selected) placeWire(x,y);
+});
+window.addEventListener('mouseup', ()=>{ dragging=false; eraseDrag=false; });
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+function placeWire(x,y){
+  const c=G.board.cells[idx(x,y)];
+  if(c.comp) return;
+  c.wire=true; // GDD: Wire 무료
+}
+function eraseCell(x,y){
+  const c=G.board.cells[idx(x,y)];
+  c.wire=false; c.comp=null;
+}
+function placeComponent(x,y,name){
+  const c=G.board.cells[idx(x,y)];
+  const def=COMPONENTS[name];
+  if(c.comp){ toast('이미 부품이 있습니다'); return; }
+  if(G.funds < def.cost){ toast('자금 부족'); return; }
+  G.funds -= def.cost;
+  c.comp=name; c.wire=false; c.on=true;
+  log(`${def.name} 배치 (-$${def.cost})`);
+  maybeFirstSolder(name);
+}
+function maybeFirstSolder(name){
+  const key='solder_'+name;
+  if(!G.fluxFirsts[key]){ G.fluxFirsts[key]=true; G.flux+=1; toast(`첫 ${COMPONENTS[name].name} 배선! Flux +1`); }
+}
+
+// =========================================================================
+//  UI: 상점 / 업그레이드 / 통계 / HUD
+// =========================================================================
+function fmtCompute(v){
+  if(v<1000) return v.toFixed(1)+' FLOPS';
+  if(v<1e6) return (v/1e3).toFixed(2)+' KFLOPS';
+  if(v<1e9) return (v/1e6).toFixed(2)+' MFLOPS';
+  if(v<1e12) return (v/1e9).toFixed(2)+' GFLOPS';
+  return (v/1e12).toFixed(2)+' TFLOPS';
+}
+function fmtMoney(v){ return '$'+Math.floor(v).toLocaleString(); }
+
+function buildShop(){
+  const list=document.getElementById('shopList'); list.innerHTML='';
+  for(const name of SHOP_ORDER){
+    const d=COMPONENTS[name];
+    const el=document.createElement('div'); el.className='item'+(G.selected===name?' selected':'');
+    el.innerHTML=`<div class="ico" style="background:${d.color}33">${d.icon}</div>
+      <div class="meta"><div class="name">${d.name}</div>
+      <div class="desc">${componentDesc(d)}</div></div>
+      <button>${fmtMoney(d.cost)}</button>`;
+    el.querySelector('button').onclick=(e)=>{ e.stopPropagation(); G.selected = (G.selected===name?null:name); G.tool='place'; refreshTools(); buildShop(); };
+    list.appendChild(el);
+  }
+  const gu=document.getElementById('gridUpgrade'); gu.innerHTML='';
+  const next=GRID_LEVELS[G.gridLevel+1];
+  if(next){
+    const el=document.createElement('div'); el.className='item';
+    el.innerHTML=`<div class="ico" style="background:#2a3138">▦</div>
+      <div class="meta"><div class="name">${next.label} 확장</div><div class="desc">그리드 확장</div></div>
+      <button ${G.funds<next.cost?'disabled':''}>${fmtMoney(next.cost)}</button>`;
+    el.querySelector('button').onclick=()=>{ if(G.funds>=next.cost){ G.funds-=next.cost; expandGrid(); } };
+    gu.appendChild(el);
+  } else {
+    gu.innerHTML='<div class="desc" style="color:var(--muted);font-size:12px">최대 확장됨 (프로토타입)</div>';
+  }
+}
+function componentDesc(d){
+  if(d.kind==='power') return `전원 · VL ${d.vl} · ${d.heat}°C/s`;
+  if(d.kind==='output') return `출력 ${d.base} FLOPS · VR ${d.vr} · ${d.heat}°C/s`;
+  if(d.kind==='thermal') return `냉각 ${d.heat}°C/s`;
+  if(d.kind==='control') return `회로 ON/OFF 제어`;
+  return '';
+}
+
+function expandGrid(){
+  const old=G.board, oldSize=old.size;
+  G.gridLevel++;
+  const newSize=GRID_LEVELS[G.gridLevel].size;
+  const nb=newBoard(newSize);
+  // 기존 내용 좌상단 복사
+  for(let y=0;y<oldSize;y++) for(let x=0;x<oldSize;x++){
+    nb.cells[y*newSize+x]=old.cells[y*oldSize+x];
+  }
+  nb.heat=old.heat;
+  G.board=nb;
+  fitCanvas();
+  document.getElementById('boardLabel').textContent=`Board #1 (${newSize}×${newSize})`;
+  buildShop();
+  log(`그리드 ${newSize}×${newSize} 확장 완료`);
+}
+
+function refreshTools(){
+  document.getElementById('toolWire').classList.toggle('active', G.tool==='wire');
+  document.getElementById('toolErase').classList.toggle('active', G.tool==='erase');
+}
+document.getElementById('toolWire').onclick=()=>{ G.tool='wire'; G.selected=null; refreshTools(); buildShop(); };
+document.getElementById('toolErase').onclick=()=>{ G.tool='erase'; G.selected=null; refreshTools(); buildShop(); };
+
+// 탭 전환
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const tab=b.dataset.tab;
+    document.getElementById('tabShop').style.display = tab==='shop'?'block':'none';
+    document.getElementById('tabUpgrades').style.display = tab==='upgrades'?'block':'none';
+    document.getElementById('tabStats').style.display = tab==='stats'?'block':'none';
+    if(tab==='stats') buildStats();
+    if(tab==='upgrades') buildUpgrades();
+  };
+});
+
+function buildUpgrades(){
+  const el=document.getElementById('tabUpgrades');
+  el.innerHTML='<h3>배선 업그레이드 (도체 등급)</h3>';
+  const grades=[
+    {name:'무산소동선 (OFC)', cap:0.97, cost:1500},
+    {name:'은도금 동선', cap:0.985, cost:12000},
+  ];
+  for(const g of grades){
+    const owned = G.conductorCap >= g.cap;
+    const div=document.createElement('div'); div.className='item';
+    div.innerHTML=`<div class="ico" style="background:#2a3138">🧵</div>
+      <div class="meta"><div class="name">${g.name}</div><div class="desc">Wire Eff 상한 ${Math.round(g.cap*100)}%</div></div>
+      <button ${owned||G.funds<g.cost?'disabled':''}>${owned?'보유':fmtMoney(g.cost)}</button>`;
+    if(!owned) div.querySelector('button').onclick=()=>{ if(G.funds>=g.cost){ G.funds-=g.cost; G.conductorCap=g.cap; toast('도체 등급 업그레이드!'); buildUpgrades(); } };
+    el.appendChild(div);
+  }
+  el.insertAdjacentHTML('beforeend','<h3>참고</h3><div class="desc" style="color:var(--muted);font-size:12px;line-height:1.5">자동화·로직게이트·프레스티지(Tape-out)는 다음 단계 구현 예정입니다. 현재는 핵심 루프(배선→연산→자금→구매) 검증용 골격입니다.</div>');
+}
+
+function buildStats(){
+  const el=document.getElementById('tabStats');
+  const valid=circuits.filter(c=>c.valid);
+  const avgEff=valid.length? valid.reduce((s,c)=>s+c.wireEff,0)/valid.length:0;
+  el.innerHTML=`
+    <div class="statline"><span>총 누적 연산량</span><span class="v">${fmtCompute(G.totalCompute)}</span></div>
+    <div class="statline"><span>현재 연산력</span><span class="v">${fmtCompute(G.computeRate)}/s</span></div>
+    <div class="statline"><span>보유 자금</span><span class="v">${fmtMoney(G.funds)}</span></div>
+    <div class="statline"><span>유효 회로 수</span><span class="v">${valid.length}</span></div>
+    <div class="statline"><span>평균 효율</span><span class="v">${(avgEff*100).toFixed(1)}% (Cap ${Math.round(G.conductorCap*100)}%)</span></div>
+    <div class="statline"><span>최고 효율</span><span class="v">${(bestEfficiency()*100).toFixed(1)}%</span></div>
+    <div class="statline"><span>Heat</span><span class="v">${G.board.heat.toFixed(1)}°C / ${G.board.maxHeat}°C</span></div>
+    <div class="statline"><span>Flux</span><span class="v">${G.flux}</span></div>
+  `;
+}
+
+function updateHUD(){
+  document.getElementById('hFunds').textContent=fmtMoney(G.funds);
+  document.getElementById('hCompute').textContent='+'+fmtCompute(G.computeRate);
+  document.getElementById('hHeat').textContent=G.board.heat.toFixed(0)+'°C';
+  document.getElementById('hHeatBar').style.width=Math.min(100,G.board.heat/G.board.maxHeat*100)+'%';
+  document.getElementById('hFlux').textContent=G.flux;
+  document.getElementById('hBP').textContent=G.bp;
+
+  const valid=circuits.filter(c=>c.valid).length;
+  const invalid=circuits.filter(c=>!c.valid && c.comps.length).length;
+  document.getElementById('circuitInfo').textContent=`회로: ✓${valid} ✗${invalid}`;
+
+  // 상점 버튼 활성/비활성 갱신 (가벼운 처리)
+  document.querySelectorAll('#shopList .item button').forEach((btn,i)=>{
+    const d=COMPONENTS[SHOP_ORDER[i]]; if(d) btn.disabled = G.funds < d.cost;
+  });
+}
+
+let logTimer=null;
+function log(msg){ document.getElementById('eventLog').textContent=msg; }
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(logTimer); logTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+// =========================================================================
+//  세이브 / 로드
+// =========================================================================
+const SAVE_KEY='circuitforge_proto_v1';
+function save(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify({
+    funds:G.funds, flux:G.flux, bp:G.bp, totalCompute:G.totalCompute,
+    conductorCap:G.conductorCap, gridLevel:G.gridLevel,
+    board:G.board, fluxFirsts:G.fluxFirsts,
+  })); }catch(e){}
+}
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(!s) return false;
+    Object.assign(G, {funds:s.funds, flux:s.flux, bp:s.bp, totalCompute:s.totalCompute,
+      conductorCap:s.conductorCap||0.95, gridLevel:s.gridLevel||0, fluxFirsts:s.fluxFirsts||{}});
+    if(s.board && s.board.cells){ G.board=s.board; if(G.board.maxHeat==null)G.board.maxHeat=100; }
+    return true;
+  }catch(e){ return false; }
+}
+setInterval(save, 5000);
+window.addEventListener('beforeunload', save);
+
+// =========================================================================
+//  초기화 (튜토리얼 시드: 배터리1 + 저항2 무료, GDD 12.1)
+// =========================================================================
+function init(){
+  const loaded=load();
+  fitCanvas();
+  if(!loaded){
+    G.funds=0;
+    // 무료 시드 부품 인벤토리 대신 직접 배치 권유 → 시작 자금 약간 지급
+    G.funds=70; // 배터리1(무료 튜토) 대신 초반 구매 가능하도록
+    log('튜토리얼: 배터리·저항을 배치하고 전선으로 닫힌 사각 루프를 만들어 보세요.');
+  }
+  buildShop(); refreshTools(); updateHUD();
+  requestAnimationFrame(t=>{ lastTick=t; tick(t); });
+}
+init();
+</script>
+</body>
+</html>
