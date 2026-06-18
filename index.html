@@ -36,7 +36,16 @@
   header .stat { display: flex; flex-direction: column; line-height: 1.1; min-width: 90px; }
   header .stat .label { font-size: 11px; color: var(--muted); }
   header .stat .val { font-size: 18px; font-weight: 600; }
+  header .stat .subval { margin-top: 2px; font-size: 11px; color: var(--muted); }
+  header .stat .subval.heating { color: #ff8585; }
+  header .stat .subval.cooling { color: #70d7ff; }
   header .title { font-weight: 700; letter-spacing: .5px; margin-right: auto; color: var(--accent); }
+  .icon-button {
+    width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--panel-2); color: var(--text); border: 1px solid #2a3138;
+    border-radius: 5px; cursor: pointer; font-size: 17px;
+  }
+  .icon-button:hover { border-color: var(--accent); color: var(--accent); }
   .heatbar { width: 120px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin-top: 3px; }
   .heatbar > div { height: 100%; background: linear-gradient(90deg,#3fa34d,#f5c518,#ff5252); width: 0%; transition: width .2s; }
 
@@ -48,10 +57,26 @@
     background: radial-gradient(circle at 50% 40%, #0f2410, #07120a);
     position: relative; overflow: auto; padding: 16px;
   }
-  #boardWrap { position: relative; }
+  #boardWrap { display: flex; flex-direction: column; align-items: stretch; gap: 7px; }
   canvas { background: var(--pcb-bg); border: 2px solid #1f3f1f; border-radius: 4px; image-rendering: pixelated; cursor: crosshair; }
   canvas.invalid { border-color: var(--danger); box-shadow: 0 0 12px rgba(255,82,82,.5); }
-  #hint { position:absolute; top:8px; left:8px; font-size:11px; color:var(--muted); background:rgba(0,0,0,.4); padding:4px 8px; border-radius:4px; }
+  #boardTop { display: flex; align-items: center; gap: 7px; min-height: 29px; }
+  #hint {
+    flex: 1; min-width: 0; font-size: 11px; color: var(--muted); white-space: nowrap;
+    background: #10171c; border: 1px solid #263139;
+    padding: 5px 8px; border-radius: 4px;
+  }
+  #selectionStatus {
+    display: none; align-items: center; gap: 7px; margin-left: auto;
+    padding: 4px 5px 4px 8px; border: 1px solid var(--accent);
+    border-radius: 4px; background: #10222a; font-size: 11px; white-space: nowrap;
+  }
+  #selectionStatus.open { display: flex; }
+  #selectionStatus .stock { color: var(--ok); font-weight: 600; }
+  #cancelSelection {
+    width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+    padding: 0; border: 0; border-radius: 3px; background: #24333c; color: var(--text); cursor: pointer;
+  }
 
   /* SIDE PANEL */
   aside { width: 320px; background: var(--panel); border-left: 1px solid #000; display: flex; flex-direction: column; }
@@ -60,15 +85,34 @@
   .tabs button.active { background: var(--panel-2); color: var(--accent); border-bottom: 2px solid var(--accent); }
   .tabcontent { flex: 1; overflow-y: auto; padding: 12px; }
   .tabcontent h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 6px; }
+  .guide-section { padding-bottom: 10px; border-bottom: 1px solid #252d33; }
+  .guide-label { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+  .guide-title { margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--text); }
+  .guide-copy { margin-top: 3px; color: #9eabb3; font-size: 11px; line-height: 1.4; }
+  .guide-progress { height: 4px; margin-top: 8px; overflow: hidden; background: #252d33; border-radius: 2px; }
+  .guide-progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  #circuitIssues { margin-top: 8px; }
+  .circuit-issue {
+    display: flex; align-items: center; gap: 6px; min-height: 22px;
+    color: #ff9b9b; font-size: 11px;
+  }
+  .circuit-ok { color: var(--ok); }
+  .circuit-warning { color: #f5c518; }
 
   .item {
     display: flex; align-items: center; gap: 10px;
     padding: 8px; background: var(--panel-2); border-radius: 6px; margin-bottom: 6px;
   }
+  #shopList .item { cursor: pointer; }
+  #shopList .item:hover { background: #1b242b; }
+  #shopList .item.locked { cursor: default; opacity: .62; }
+  #shopList .item.locked:hover { background: var(--panel-2); }
+  .item .meta .lock { margin-top: 3px; color: #f5c518; font-size: 11px; }
   .item .ico { width: 28px; height: 28px; border-radius: 5px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
   .item .meta { flex: 1; min-width: 0; }
   .item .meta .name { font-size: 13px; font-weight: 600; }
   .item .meta .desc { font-size: 11px; color: var(--muted); }
+  .item .meta .stock { margin-top: 2px; font-size: 11px; color: var(--ok); font-weight: 600; }
   .item button {
     background: var(--accent); color: #042b38; border: none; border-radius: 5px;
     padding: 6px 10px; font-weight: 600; cursor: pointer; font-size: 12px;
@@ -76,7 +120,7 @@
   .item button:disabled { background: #2a3138; color: #5a646c; cursor: not-allowed; }
   .item.selected { outline: 1px solid var(--accent); }
 
-  .toolbar { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .toolbar { display:flex; gap:6px; margin:10px 0; flex-wrap:wrap; }
   .toolbar button { background: var(--panel-2); color: var(--text); border:1px solid #2a3138; border-radius:5px; padding:6px 10px; cursor:pointer; font-size:12px; }
   .toolbar button.active { background: var(--accent); color:#042b38; font-weight:600; }
 
@@ -88,6 +132,60 @@
   .toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background:#1b2630; border:1px solid var(--accent); color:var(--text); padding:10px 18px; border-radius:8px; opacity:0; transition:opacity .3s; pointer-events:none; }
   .toast.show { opacity:1; }
   .pill { background:#1a2128; border-radius:10px; padding:2px 8px; font-size:11px; color:var(--muted); }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 20; display: none;
+    align-items: center; justify-content: center; padding: 20px;
+    background: rgba(0,0,0,.72);
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: min(420px, 100%); background: var(--panel); border: 1px solid #303942;
+    border-radius: 8px; box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  }
+  .modal-header {
+    min-height: 48px; display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px 8px 16px; border-bottom: 1px solid #252c32;
+  }
+  .modal-header h2 { margin: 0; font-size: 16px; letter-spacing: 0; }
+  .modal-body { padding: 16px; }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 0;
+  }
+  .settings-copy strong { display: block; font-size: 13px; }
+  .settings-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+  .danger-button {
+    flex-shrink: 0; min-width: 92px; padding: 7px 10px; border: 1px solid var(--danger);
+    border-radius: 5px; background: transparent; color: #ff8585; font-weight: 600; cursor: pointer;
+  }
+  .danger-button.confirm { background: var(--danger); color: #210606; }
+
+  .component-tooltip {
+    position: fixed; z-index: 40; display: none; width: min(300px, calc(100vw - 20px));
+    padding: 11px 12px; pointer-events: none;
+    background: #10171c; border: 1px solid #34424c; border-radius: 6px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5); color: var(--text);
+  }
+  .component-tooltip.open { display: block; }
+  .tooltip-title { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; }
+  .tooltip-kind {
+    margin-left: auto; padding: 2px 6px; border-radius: 4px;
+    background: #202b33; color: var(--muted); font-size: 10px; font-weight: 600;
+  }
+  .tooltip-role { margin: 7px 0 9px; font-size: 12px; line-height: 1.45; color: #e6edf1; }
+  .tooltip-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 4px 0; border-top: 1px solid #222c33; font-size: 11px;
+  }
+  .tooltip-row span:first-child { color: var(--muted); }
+  .tooltip-row strong { text-align: right; font-weight: 600; color: var(--text); }
+  .tooltip-status-ok { color: var(--ok) !important; }
+  .tooltip-status-bad { color: #ff8585 !important; }
+  .tooltip-tip {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid #34424c;
+    color: #aebbc3; font-size: 11px; line-height: 1.4;
+  }
 </style>
 </head>
 <body>
@@ -96,16 +194,30 @@
     <div class="title">⚡ CIRCUIT FORGE <span class="pill">prototype</span></div>
     <div class="stat"><span class="label">💰 자금</span><span class="val" id="hFunds">$0</span></div>
     <div class="stat"><span class="label">⚙ 연산력</span><span class="val" id="hCompute">0 FLOPS</span></div>
-    <div class="stat"><span class="label">🌡 Heat</span><span class="val" id="hHeat">0°C</span><div class="heatbar"><div id="hHeatBar"></div></div></div>
+    <div class="stat">
+      <span class="label">🌡 Heat</span>
+      <span class="val" id="hHeat">0°C</span>
+      <span class="subval" id="hHeatRate">±0.0°C/s</span>
+      <div class="heatbar"><div id="hHeatBar"></div></div>
+    </div>
     <div class="stat"><span class="label">✦ Flux</span><span class="val" id="hFlux">0</span></div>
     <div class="stat"><span class="label">🔵 BP</span><span class="val" id="hBP">0</span></div>
+    <button class="icon-button" id="settingsButton" type="button" aria-label="설정 열기" title="설정">⚙</button>
   </header>
 
   <main>
     <div id="gridArea">
       <div id="boardWrap">
+        <div id="boardTop">
+          <div id="hint">드래그 방향: 배선 연결 · 클릭: 배치 · R: 회전 · 분기: Junction · 우클릭: 삭제</div>
+          <div id="selectionStatus">
+            <span id="selectedIcon"></span>
+            <strong id="selectedName"></strong>
+            <span class="stock" id="selectedStock"></span>
+            <button id="cancelSelection" type="button" title="선택 취소" aria-label="부품 선택 취소">×</button>
+          </div>
+        </div>
         <canvas id="board"></canvas>
-        <div id="hint">좌클릭 드래그: 배선 · 부품선택 후 클릭: 배치 · 우클릭: 삭제</div>
       </div>
     </div>
 
@@ -116,9 +228,17 @@
         <button data-tab="stats">Stats</button>
       </div>
       <div class="tabcontent" id="tabShop">
+        <div class="guide-section">
+          <div class="guide-label" id="tutorialProgressLabel">Tutorial 1/5</div>
+          <div class="guide-title" id="tutorialTitle">무료 부품 받기</div>
+          <div class="guide-copy" id="tutorialCopy">무료 버튼을 눌러 기본 부품을 재고에 넣으세요.</div>
+          <div class="guide-progress"><div id="tutorialProgressBar"></div></div>
+          <div id="circuitIssues"></div>
+        </div>
         <div class="toolbar">
           <button id="toolWire" class="active">🔌 배선</button>
           <button id="toolErase">🧽 삭제</button>
+          <button id="rotateComponent" title="선택 부품 90도 회전 (R)" aria-label="선택 부품 회전">↻</button>
         </div>
         <h3>Phase 1 부품</h3>
         <div id="shopList"></div>
@@ -132,36 +252,90 @@
 
   <footer>
     <span id="boardLabel">Board #1 (8×8)</span>
-    <span id="eventLog">빈 기판에서 시작합니다. 배터리와 저항을 배치해 닫힌 회로를 만들어 보세요.</span>
+    <span id="eventLog">빈 기판에서 시작합니다. Battery, Clock, Logic Cell, Resistor를 배치해 닫힌 회로를 만들어 보세요.</span>
     <span style="margin-left:auto" class="pill" id="circuitInfo">회로: 0</span>
   </footer>
 </div>
 <div class="toast" id="toast"></div>
+<div class="component-tooltip" id="componentTooltip" role="tooltip" aria-hidden="true"></div>
+<div class="modal-backdrop" id="settingsModal" aria-hidden="true">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-header">
+      <h2 id="settingsTitle">설정</h2>
+      <button class="icon-button" id="settingsClose" type="button" aria-label="설정 닫기" title="닫기">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-row">
+        <div class="settings-copy">
+          <strong>게임 초기화</strong>
+          <span>보드, 자금, 부품과 모든 진행 상황을 삭제합니다.</span>
+        </div>
+        <button class="danger-button" id="resetGameButton" type="button">초기화</button>
+      </div>
+    </div>
+  </section>
+</div>
 
 <script>
 "use strict";
 /* =========================================================================
    Circuit Forge — Prototype "Big Frame"
-   단일 HTML / 바닐라 JS. GDD v0.2의 핵심 루프를 검증하는 골격 구현.
+   단일 HTML / 바닐라 JS. GDD v0.3의 핵심 루프를 검증하는 골격 구현.
    구현 범위: 그리드/배선/부품, 회로 유효성, 효율·전압·병렬·Heat 계산,
              연산력→자금 루프, 상점/업그레이드, 세이브.
    ========================================================================= */
 
 // ---- 부품 카탈로그 (GDD 5.2) -------------------------------------------
 const COMPONENTS = {
-  battery:  { name:'Battery',  icon:'🔋', color:'#2d6cdf', cost:50,  vl:1, vr:0, base:0, heat:2,   kind:'power'  },
-  resistor: { name:'Resistor', icon:'🟫', color:'#8a5a2b', cost:10,  vl:0, vr:1, base:2, heat:1,   kind:'output' },
-  led:      { name:'LED',      icon:'💡', color:'#f5f5f5', cost:100, vl:0, vr:1, base:7, heat:4,   kind:'output', glow:true },
-  switch:   { name:'Switch',   icon:'🔘', color:'#3fa34d', cost:30,  vl:0, vr:0, base:0, heat:0,   kind:'control' },
-  heatsink: { name:'Heatsink', icon:'🌡', color:'#9aa7b0', cost:300, vl:0, vr:0, base:0, heat:-5,  kind:'thermal' },
+  battery:  { name:'Battery', icon:'🔋', color:'#2d6cdf', cost:50, vl:1, vr:0, base:0, heat:2, kind:'power',
+    terminals:{ input:'W', output:'E' },
+    category:'전원', role:'회로에 전력을 공급합니다. 유효 회로에 최소 1개 필요합니다.',
+    effect:'Voltage Level(VL) +1', requirement:'유효 회로 필수', tip:'여러 개를 연결하면 VL이 합산되지만 Heat도 증가합니다.' },
+  clock:    { name:'Clock', icon:'⏱', color:'#4fd1ff', cost:25, vl:0, vr:1, base:0, heat:0.5, kind:'clock',
+    terminals:{ input:'W', output:'E' },
+    category:'클럭', role:'Logic Cell이 계산할 수 있도록 연산 주기를 제공합니다.',
+    effect:'Clock 배율 ×1.0', requirement:'유효 회로 필수', tip:'2개부터 출력과 Heat가 함께 증가하는 과구동 상태가 됩니다.' },
+  logic:    { name:'Logic Cell', icon:'▣', color:'#7cdb86', cost:20, vl:0, vr:1, base:2, heat:1.5, kind:'compute',
+    terminals:{ input:'W', output:'E' },
+    category:'연산', role:'Clock 신호를 받아 실제 FLOPS를 생산합니다.',
+    effect:'Base Compute 2 FLOPS', requirement:'Battery와 Clock 필요', tip:'같은 회로에 여러 개를 넣으면 병렬 연산 보너스를 받습니다.' },
+  resistor: { name:'Resistor', icon:'🟫', color:'#8a5a2b', cost:10, vl:0, vr:1, base:0, heat:1, kind:'passive',
+    terminals:{ input:'W', output:'E' },
+    category:'안정화', role:'회로를 안정화해 출력 손실을 줄입니다.',
+    effect:'Stability Modifier 보정', requirement:'선택 사항', tip:'1개면 불안정 패널티를 제거하고, 2개면 소폭 보너스를 줍니다.' },
+  led:      { name:'LED', icon:'💡', color:'#f5f5f5', cost:100, vl:0, vr:1, base:0, heat:0.5, kind:'feedback', glow:true,
+    terminals:{ input:'W', output:'E' },
+    unlock:'firstCircuit',
+    category:'피드백', role:'작동 상태와 전류 흐름을 시각적으로 확인합니다.',
+    effect:'점등 및 디버그 표시', requirement:'선택 사항', tip:'처음으로 유효 회로에서 점등하면 Flux +2를 획득합니다.' },
+  junction: { name:'Junction', icon:'✚', color:'#d6a934', cost:15, vl:0, vr:0, base:0, heat:0, kind:'routing',
+    terminals:{ N:'junction', E:'junction', S:'junction', W:'junction' },
+    category:'배선', role:'세 갈래 이상의 전선을 하나의 전기적 접점으로 연결합니다.',
+    effect:'4방향 전기 연결', requirement:'분기 및 교차 연결', tip:'일반 전선은 최대 두 방향만 연결됩니다. 독립 배선은 한 칸 띄우고 T/X 접점에는 Junction을 사용하세요.' },
+  switch:   { name:'Switch', icon:'🔘', color:'#3fa34d', cost:30, vl:0, vr:0, base:0, heat:0, kind:'control',
+    terminals:{ input:'W', output:'E' },
+    unlock:'compute10',
+    category:'제어', role:'회로 생산을 수동으로 켜거나 끕니다.',
+    effect:'회로 ON/OFF', requirement:'선택 사항', tip:'보드에서 Switch를 클릭하면 연결된 회로 전체가 전환됩니다.' },
+  heatsink: { name:'Heatsink', icon:'🌡', color:'#9aa7b0', cost:300, vl:0, vr:0, base:0, heat:-5, kind:'thermal',
+    footprint:[[0,0],[0,1]],
+    terminalCells:[
+      { offset:[0,0], side:'N', type:'input' },
+      { offset:[0,1], side:'S', type:'output' },
+    ],
+    unlock:'heat70',
+    category:'냉각', role:'보드의 Heat를 낮춰 출력 저하를 방지합니다.',
+    effect:'Heat -5°C/s', requirement:'선택 사항', tip:'활성 회로에 연결해야 냉각 효과가 적용됩니다.' },
 };
-const SHOP_ORDER = ['battery','resistor','led','switch','heatsink'];
+const SHOP_ORDER = ['battery','clock','logic','resistor','led','junction','switch','heatsink'];
 
 // ---- 셀 타입 -----------------------------------------------------------
-// cell = { wire:bool, comp:string|null, on:bool }
+// cell = { wire, wireDirs, comp, on, rotation, anchorX, anchorY }
 function newBoard(size){
   const cells = [];
-  for(let i=0;i<size*size;i++) cells.push({ wire:false, comp:null, on:true });
+  for(let i=0;i<size*size;i++) cells.push({
+    wire:false, wireDirs:0, comp:null, on:true, rotation:0, anchorX:null, anchorY:null,
+  });
   return { size, cells, heat:0, maxHeat:100 };
 }
 
@@ -172,13 +346,20 @@ const G = {
   bp: 0,
   totalCompute: 0,
   computeRate: 0,
+  heatRate: 0,
   conductorCap: 0.95,            // 구리선 기본 (GDD 5.6)
   board: newBoard(8),
   gridLevel: 0,                  // 0:8x8, 1:16x16 (GDD 4.1)
   selected: null,                // 선택된 부품 이름
+  rotation: 0,                   // 배치할 부품 방향
   tool: 'wire',                  // 'wire' | 'erase'
   achievements: {},
   fluxFirsts: {},                // 효율 마일스톤 1회 보상 추적
+  starterStock: { battery:1, clock:1, logic:1, resistor:1 },
+  inventory: {},
+  tutorialStep: 0,
+  unlocked: {},
+  peakHeat: 0,
 };
 
 const GRID_LEVELS = [
@@ -200,11 +381,120 @@ function fitCanvas(){
 
 function idx(x,y){ return y*G.board.size + x; }
 function inBounds(x,y){ return x>=0 && y>=0 && x<G.board.size && y<G.board.size; }
+const DIRECTIONS=[
+  { side:'E', opposite:'W', dx:1, dy:0, bit:2, oppositeBit:8 },
+  { side:'W', opposite:'E', dx:-1, dy:0, bit:8, oppositeBit:2 },
+  { side:'S', opposite:'N', dx:0, dy:1, bit:4, oppositeBit:1 },
+  { side:'N', opposite:'S', dx:0, dy:-1, bit:1, oppositeBit:4 },
+];
+const SIDE_ORDER=['N','E','S','W'];
+function rotatedSide(side,rotation=0){
+  return SIDE_ORDER[(SIDE_ORDER.indexOf(side)+(rotation||0))%4];
+}
+function rotateOffset([dx,dy],rotation=0){
+  let x=dx, y=dy;
+  for(let i=0;i<(rotation||0)%4;i++) [x,y]=[y,-x];
+  return [x,y];
+}
+function componentOffsets(name,rotation=0){
+  return (COMPONENTS[name]?.footprint||[[0,0]]).map(offset=>rotateOffset(offset,rotation));
+}
+function componentAnchorAt(x,y){
+  if(!inBounds(x,y)) return null;
+  const cell=G.board.cells[idx(x,y)];
+  if(!cell.comp) return null;
+  return [
+    cell.anchorX==null ? x : cell.anchorX,
+    cell.anchorY==null ? y : cell.anchorY,
+  ];
+}
+function componentCellsAt(x,y,name=null,rotation=null){
+  const anchor=componentAnchorAt(x,y) || [x,y];
+  const anchorCell=inBounds(anchor[0],anchor[1]) ? G.board.cells[idx(anchor[0],anchor[1])] : null;
+  const componentName=name||anchorCell?.comp;
+  const componentRotation=rotation==null ? (anchorCell?.rotation||0) : rotation;
+  if(!componentName) return [];
+  return componentOffsets(componentName,componentRotation)
+    .map(([dx,dy])=>[anchor[0]+dx,anchor[1]+dy]);
+}
+function isComponentAnchor(x,y){
+  const anchor=componentAnchorAt(x,y);
+  return Boolean(anchor && anchor[0]===x && anchor[1]===y);
+}
+function sameComponentInstance(x,y,nx,ny){
+  const a=componentAnchorAt(x,y), b=componentAnchorAt(nx,ny);
+  return Boolean(a&&b&&a[0]===b[0]&&a[1]===b[1]);
+}
+function componentTerminalMap(name,rotation=0){
+  const terminals=COMPONENTS[name]?.terminals;
+  if(!terminals) return {};
+  if(!terminals.input && !terminals.output){
+    return Object.fromEntries(Object.entries(terminals).map(([side,type])=>[rotatedSide(side,rotation),type]));
+  }
+  return {
+    [rotatedSide(terminals.input,rotation)]:'input',
+    [rotatedSide(terminals.output,rotation)]:'output',
+  };
+}
+function cellTerminalMap(x,y){
+  const anchor=componentAnchorAt(x,y);
+  if(!anchor) return {};
+  const anchorCell=G.board.cells[idx(anchor[0],anchor[1])];
+  const def=COMPONENTS[anchorCell.comp];
+  if(!def?.terminalCells) return componentTerminalMap(anchorCell.comp,anchorCell.rotation);
+  const map={};
+  for(const terminal of def.terminalCells){
+    const [dx,dy]=rotateOffset(terminal.offset,anchorCell.rotation);
+    if(anchor[0]+dx===x && anchor[1]+dy===y){
+      map[rotatedSide(terminal.side,anchorCell.rotation)]=terminal.type;
+    }
+  }
+  return map;
+}
+function cellHasTerminal(x,y,side){
+  return Boolean(cellTerminalMap(x,y)[side]);
+}
+function wireHasDirection(cell,side){
+  const bit=DIRECTIONS.find(d=>d.side===side)?.bit||0;
+  return Boolean(cell?.wire && ((cell.wireDirs||0)&bit));
+}
+function cellsConnected(x,y,nx,ny){
+  if(!inBounds(x,y) || !inBounds(nx,ny)) return false;
+  const a=G.board.cells[idx(x,y)], b=G.board.cells[idx(nx,ny)];
+  if(!(a.wire||a.comp) || !(b.wire||b.comp)) return false;
+  if(a.comp && b.comp && sameComponentInstance(x,y,nx,ny)) return true;
+  const dir=DIRECTIONS.find(d=>x+d.dx===nx && y+d.dy===ny);
+  if(!dir) return false;
+  if(a.wire && b.wire){
+    return wireHasDirection(a,dir.side) && wireHasDirection(b,dir.opposite);
+  }
+  if(a.comp && b.wire){
+    return cellHasTerminal(x,y,dir.side) && wireHasDirection(b,dir.opposite);
+  }
+  if(a.wire && b.comp){
+    return wireHasDirection(a,dir.side) && cellHasTerminal(nx,ny,dir.opposite);
+  }
+  const aType=cellTerminalMap(x,y)[dir.side];
+  const bType=cellTerminalMap(nx,ny)[dir.opposite];
+  return Boolean(aType && bType && (aType==='junction' || bType==='junction' || aType!==bType));
+}
+function connectionAttempted(x,y,nx,ny){
+  const a=G.board.cells[idx(x,y)],b=G.board.cells[idx(nx,ny)];
+  const dir=DIRECTIONS.find(d=>x+d.dx===nx&&y+d.dy===ny);
+  if(!dir) return false;
+  if(a.wire&&b.comp) return wireHasDirection(a,dir.side);
+  if(a.comp&&b.wire) return wireHasDirection(b,dir.opposite);
+  if(a.comp&&b.comp){
+    return cellHasTerminal(x,y,dir.side)||cellHasTerminal(nx,ny,dir.opposite);
+  }
+  return false;
+}
 
 // =========================================================================
 //  회로 시뮬레이션
 //  접근: 비어있지 않은 셀들을 노드로 보고 직교 인접으로 그래프 구성.
-//  연결요소 안에 전원≥1 & 부하≥1 이 있고 사이클(폐루프)이 존재하면 유효.
+//  실제 사이클에 속한 셀만 닫힌 전류 경로로 인정한다.
+//  연결요소 안에 사이클 경로의 전원≥1 & Clock≥1 & Compute≥1 이 있으면 유효.
 //  효율은 부품 바운딩박스 둘레(이상적 폐루프 길이) / 실제 배선 길이로 근사.
 // =========================================================================
 function analyzeCircuits(){
@@ -224,9 +514,9 @@ function analyzeCircuits(){
     while(queue.length){
       const [cx,cy] = queue.pop();
       nodes.push([cx,cy]);
-      const neigh = [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]];
-      for(const [nx,ny] of neigh){
-        if(!occupied(nx,ny)) continue;
+      for(const {dx,dy} of DIRECTIONS){
+        const nx=cx+dx, ny=cy+dy;
+        if(!occupied(nx,ny) || !cellsConnected(cx,cy,nx,ny)) continue;
         if(nx>cx || ny>cy) edges++; // 각 무방향 간선 1회만 카운트
         const ni = idx(nx,ny);
         if(!visited[ni]){ visited[ni]=true; queue.push([nx,ny]); }
@@ -234,45 +524,191 @@ function analyzeCircuits(){
     }
     circuits.push(buildCircuit(nodes, edges));
   }
+  const invalidContacts=[];
+  const invalidWireBranches=[];
+  const junctionWarnings=[];
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    const a=cells[idx(x,y)];
+    if(!(a.wire||a.comp)) continue;
+    if(a.wire && !a.comp && plainWireDegree(x,y)>2) invalidWireBranches.push([x,y]);
+    if(a.comp==='junction'){
+      const degree=DIRECTIONS.reduce((count,{dx,dy})=>count+(cellsConnected(x,y,x+dx,y+dy)?1:0),0);
+      if(degree<3) junctionWarnings.push([x,y,degree]);
+    }
+    for(const {dx,dy,side} of DIRECTIONS.filter(d=>d.side==='E'||d.side==='S')){
+      const nx=x+dx, ny=y+dy;
+      if(!inBounds(nx,ny)) continue;
+      const b=cells[idx(nx,ny)];
+      if(!(b.wire||b.comp) || (!a.comp && !b.comp)) continue;
+      if(connectionAttempted(x,y,nx,ny) && !cellsConnected(x,y,nx,ny)){
+        invalidContacts.push([[x,y],[nx,ny]]);
+      }
+    }
+  }
+  circuits.invalidContacts=invalidContacts;
+  circuits.invalidWireBranches=invalidWireBranches;
+  circuits.junctionWarnings=junctionWarnings;
+  for(const circuit of circuits){
+    const containsInvalidBranch=invalidWireBranches.some(([x,y])=>circuit.nodes.some(([cx,cy])=>cx===x&&cy===y));
+    if(containsInvalidBranch){
+      circuit.valid=false;
+      circuit.reason='일반 전선 분기 · Junction 필요';
+      circuit.rate=0;
+    }
+  }
   return circuits;
+}
+
+function closedPathRegions(nodes){
+  const key=(x,y)=>`${x},${y}`;
+  const nodeSet=new Set(nodes.map(([x,y])=>key(x,y)));
+  const adjacency=new Map();
+  for(const [x,y] of nodes){
+    const current=key(x,y);
+    const neighbors=[];
+    for(const {dx,dy} of DIRECTIONS){
+      const next=key(x+dx,y+dy);
+      if(nodeSet.has(next) && cellsConnected(x,y,x+dx,y+dy)) neighbors.push(next);
+    }
+    adjacency.set(current,neighbors);
+  }
+
+  // Tarjan bridge search: bridge가 아닌 간선의 양 끝점만 실제 사이클에 속한다.
+  const discovery=new Map(), low=new Map(), bridges=new Set();
+  let time=0;
+  const edgeKey=(a,b)=>a<b ? `${a}|${b}` : `${b}|${a}`;
+  function visit(current,parent=null){
+    discovery.set(current,++time);
+    low.set(current,time);
+    for(const next of adjacency.get(current)){
+      if(next===parent) continue;
+      if(!discovery.has(next)){
+        visit(next,current);
+        low.set(current,Math.min(low.get(current),low.get(next)));
+        if(low.get(next)>discovery.get(current)) bridges.add(edgeKey(current,next));
+      } else {
+        low.set(current,Math.min(low.get(current),discovery.get(next)));
+      }
+    }
+  }
+  for(const node of adjacency.keys()) if(!discovery.has(node)) visit(node);
+
+  const cycleAdjacency=new Map();
+  for(const node of adjacency.keys()) cycleAdjacency.set(node,[]);
+  for(const [current,neighbors] of adjacency){
+    for(const next of neighbors){
+      if(!bridges.has(edgeKey(current,next))){
+        cycleAdjacency.get(current).push(next);
+      }
+    }
+  }
+
+  const regions=[], regionVisited=new Set();
+  for(const start of cycleAdjacency.keys()){
+    if(regionVisited.has(start) || cycleAdjacency.get(start).length===0) continue;
+    const region=new Set(), stack=[start];
+    regionVisited.add(start);
+    while(stack.length){
+      const current=stack.pop();
+      region.add(current);
+      for(const next of cycleAdjacency.get(current)){
+        if(!regionVisited.has(next)){
+          regionVisited.add(next);
+          stack.push(next);
+        }
+      }
+    }
+    if(region.size>=4) regions.push(region);
+  }
+  return regions;
 }
 
 function buildCircuit(nodes, edges){
   const cells = G.board.cells;
-  const comps = [];        // 부품 좌표
+  const nodeKey=(x,y)=>`${x},${y}`;
+  const closedRegions=closedPathRegions(nodes);
+  const regionScore=region=>{
+    let battery=0, clock=0, logic=0, components=0;
+    const seen=new Set();
+    for(const key of region){
+      const [x,y]=key.split(',').map(Number);
+      const anchor=componentAnchorAt(x,y);
+      if(!anchor) continue;
+      const anchorKey=`${anchor[0]},${anchor[1]}`;
+      if(seen.has(anchorKey)) continue;
+      seen.add(anchorKey);
+      const name=cells[idx(anchor[0],anchor[1])].comp;
+      if(!name) continue;
+      components++;
+      if(name==='battery') battery++;
+      if(name==='clock') clock++;
+      if(name==='logic') logic++;
+    }
+    const complete=battery>0 && clock>0 && logic>0;
+    return (complete ? 10000 : 0) + (battery>0 ? 1000 : 0)
+      + (clock>0 ? 100 : 0) + (logic>0 ? 100 : 0) + components;
+  };
+  closedRegions.sort((a,b)=>regionScore(b)-regionScore(a));
+  const closedNodeKeys=closedRegions[0] || new Set();
+  const closedNodes=nodes.filter(([x,y])=>closedNodeKeys.has(nodeKey(x,y)));
+  const comps = [];        // 연결요소의 모든 부품
+  const activeComps = [];  // 실제 닫힌 경로 위의 부품
   let wires = 0;
-  let powerCount = 0, loadCount = 0, switchOff = false;
+  let powerCount = 0, clockCount = 0, computeCount = 0;
   let vlSum = 0;
   const compCounts = {};
+  const allCompCounts = {};
   let allSwitchesOn = true;
 
   let minX=1e9,minY=1e9,maxX=-1,maxY=-1;
+  const seenComponents=new Set();
   for(const [x,y] of nodes){
     const c = cells[idx(x,y)];
-    if(c.wire) wires++;
-    if(c.comp){
-      const def = COMPONENTS[c.comp];
-      comps.push([x,y,c.comp]);
-      compCounts[c.comp] = (compCounts[c.comp]||0)+1;
+    if(c.wire && closedNodeKeys.has(nodeKey(x,y))) wires++;
+    if(!c.comp) continue;
+    const anchor=componentAnchorAt(x,y);
+    const anchorKey=`${anchor[0]},${anchor[1]}`;
+    if(seenComponents.has(anchorKey)) continue;
+    seenComponents.add(anchorKey);
+    const anchorCell=cells[idx(anchor[0],anchor[1])];
+    const name=anchorCell.comp;
+    const occupiedCells=componentCellsAt(anchor[0],anchor[1]);
+    comps.push([anchor[0],anchor[1],name]);
+    allCompCounts[name]=(allCompCounts[name]||0)+1;
+
+    const onClosedPath=occupiedCells.every(([cx,cy])=>closedNodeKeys.has(nodeKey(cx,cy)));
+    if(onClosedPath){
+      const def = COMPONENTS[name];
+      activeComps.push([anchor[0],anchor[1],name]);
+      compCounts[name] = (compCounts[name]||0)+1;
       if(def.kind==='power'){ powerCount++; vlSum += def.vl; }
-      if(def.kind==='output'){ loadCount++; }
-      if(c.comp==='switch' && !c.on){ allSwitchesOn=false; }
-      minX=Math.min(minX,x); minY=Math.min(minY,y);
-      maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
+      if(def.kind==='clock'){ clockCount++; }
+      if(def.kind==='compute'){ computeCount++; }
+      if(name==='switch' && !anchorCell.on){ allSwitchesOn=false; }
+      for(const [cx,cy] of occupiedCells){
+        minX=Math.min(minX,cx); minY=Math.min(minY,cy);
+        maxX=Math.max(maxX,cx); maxY=Math.max(maxY,cy);
+      }
     }
   }
 
-  // 폐루프 여부: 무방향 그래프에서 edges >= nodes 이면 사이클 존재
-  const hasCycle = edges >= nodes.length && nodes.length >= 4;
+  const hasCycle = closedNodes.length >= 4;
+  const batteryShort = hasCycle && powerCount>0
+    && activeComps.every(([, , name])=>['power','routing'].includes(COMPONENTS[name].kind));
 
   // 유효성 (GDD 4.4)
   let valid = true, reason = '';
-  if(powerCount === 0){ valid=false; reason='전원 없음'; }
-  else if(loadCount === 0){ valid=false; reason='부하 없음 (단락 위험)'; }
+  if((allCompCounts.battery||0) === 0){ valid=false; reason='전원 없음'; }
+  else if(batteryShort){ valid=false; reason='Battery 단락'; }
+  else if((allCompCounts.clock||0) === 0){ valid=false; reason='Clock 없음'; }
+  else if((allCompCounts.logic||0) === 0){ valid=false; reason='연산 코어 없음'; }
   else if(!hasCycle){ valid=false; reason='닫힌 루프 아님'; }
+  else if(powerCount === 0){ valid=false; reason='Battery가 닫힌 경로 밖'; }
+  else if(clockCount === 0){ valid=false; reason='Clock이 닫힌 경로 밖'; }
+  else if(computeCount === 0){ valid=false; reason='Logic Cell이 닫힌 경로 밖'; }
 
   // ---- 효율 계산 (GDD 4.5) ----
-  let wireEff = 0, voltBonus = 1, parallelBonus = 1, base = 0;
+  let wireEff = 0, voltBonus = 1, stability = 1, parallelBonus = 1, clockModifier = 1, base = 0;
   let vl = vlSum; // 직렬 가정: 배터리 VL 합산
   if(valid){
     // 이상적 폐루프 길이 ≈ 부품 바운딩박스 둘레
@@ -281,32 +717,43 @@ function buildCircuit(nodes, edges){
     const rawRatio = wires>0 ? Math.min(1, idealWire / wires) : 1;
     wireEff = Math.min(G.conductorCap, rawRatio);
 
-    // 전압 매칭 보너스 — 출력부품 평균 VR 대비
+    // 전압 매칭 보너스 — Compute 부품 평균 VR 대비
     let vrSum=0, vrN=0;
-    for(const [,,name] of comps){ const d=COMPONENTS[name]; if(d.kind==='output'){ vrSum+=d.vr; vrN++; } }
+    for(const [,,name] of activeComps){ const d=COMPONENTS[name]; if(d.kind==='compute'){ vrSum+=d.vr; vrN++; } }
     const vr = vrN? vrSum/vrN : 1;
     if(vl===vr) voltBonus=1;
     else if(vl>vr) voltBonus=Math.min(1.5, 1+(vl-vr)*0.1);
     else voltBonus=0.5;
 
-    // 병렬 보너스: 같은 종류 부품 n개 → ×(1+0.05*(n-1))
-    for(const k in compCounts){ const n=compCounts[k]; if(n>1) parallelBonus *= (1+0.05*(n-1)); }
+    // Clock은 직접 FLOPS를 만들지 않고 회로 틱을 제공한다.
+    if(clockCount === 1) clockModifier = 1;
+    else if(clockCount === 2) clockModifier = 1.15;
+    else clockModifier = 1.25;
 
-    // 부품 베이스 합산 (저항은 VL 스케일링 공식 적용 → 전압보너스 대체)
-    for(const [,,name] of comps){
+    // Resistor는 안정화 담당. 3개 이상은 추가 보너스 없음.
+    const resistorCount = compCounts.resistor || 0;
+    if(resistorCount === 0) stability = 0.85;
+    else if(resistorCount === 1) stability = 1;
+    else stability = 1.05;
+
+    // 병렬 보너스: 같은 종류 부품 n개 → ×(1+0.05*(n-1))
+    for(const k in compCounts){
+      const n=compCounts[k];
+      if(n>1 && COMPONENTS[k].kind==='compute') parallelBonus *= (1+0.05*(n-1));
+    }
+
+    // Compute Component만 Base Compute에 기여한다.
+    for(const [,,name] of activeComps){
       const d = COMPONENTS[name];
-      if(name==='resistor'){
-        base += 2 * (Math.min(vl, d.vr*2) / d.vr); // GDD 5.2 스케일링
-      } else {
-        base += d.base;
-      }
+      if(d.kind==='compute') base += d.base;
     }
   }
 
   return {
-    nodes, comps, wires, valid, reason, hasCycle,
-    wireEff, voltBonus, parallelBonus, base, vl,
-    allSwitchesOn, bbox:[minX,minY,maxX,maxY],
+    nodes, closedNodes, closedNodeKeys, closedRegions, comps, activeComps, wires, valid, reason, hasCycle, batteryShort,
+    wireEff, voltBonus, stability, parallelBonus, clockModifier, base, vl,
+    allSwitchesOn, compCounts, allCompCounts, bbox:[minX,minY,maxX,maxY],
+    offPathCompCount: comps.length-activeComps.length,
     rate: 0, // 아래서 채움
   };
 }
@@ -317,6 +764,11 @@ function heatModifier(heat){
   if(heat <= 85) return 1.0 - (heat-70)*0.01;
   if(heat <= 99) return 0.85 - (heat-85)*0.02;
   return 0.57;
+}
+function calculateCircuitRate(c){
+  if(!c.valid || !c.allSwitchesOn) return 0;
+  return c.base * c.clockModifier * c.wireEff * c.voltBonus
+    * c.stability * c.parallelBonus * heatModifier(G.board.heat);
 }
 
 // =========================================================================
@@ -334,26 +786,29 @@ function tick(now){
   // Heat 변화: 부품 발열 합 (활성 회로만)
   let heatDelta = 0;
   let totalRate = 0;
-  const hm = heatModifier(G.board.heat);
-
   for(const c of circuits){
-    // 발열은 회로 유효/배치 여부와 무관하게 작동 중인 부품에서 발생
-    for(const [x,y,name] of c.comps){
-      const d = COMPONENTS[name];
-      if(d.heat) heatDelta += d.heat;
-    }
     if(c.valid && c.allSwitchesOn){
-      c.rate = c.base * c.wireEff * c.voltBonus * c.parallelBonus * hm;
+      // 실제 작동 중인 유효 회로만 발열/냉각에 기여한다.
+      for(const [x,y,name] of c.activeComps){
+        const d = COMPONENTS[name];
+        if(d.heat){
+          let heat = d.heat;
+          if((c.compCounts?.clock || 0) >= 2 && d.heat > 0) heat *= (c.compCounts.clock === 2 ? 1.2 : 1.5);
+          heatDelta += heat;
+        }
+      }
+      c.rate = calculateCircuitRate(c);
       totalRate += c.rate;
     } else {
       c.rate = 0;
     }
   }
 
-  // Heat 적분 (방열판은 음수 heat로 자연 반영)
-  G.board.heat = Math.max(0, Math.min(G.board.maxHeat, G.board.heat + heatDelta*dt));
-  // 부하 없을 때 서서히 냉각
-  if(heatDelta <= 0) G.board.heat = Math.max(0, G.board.heat - 3*dt);
+  // 현재 프로토타입 열 모델: 부품 합산 + 무부하 자연 냉각.
+  const idleCooling = heatDelta <= 0 && G.board.heat > 0 ? -3 : 0;
+  G.heatRate = heatDelta + idleCooling;
+  G.board.heat = Math.max(0, Math.min(G.board.maxHeat, G.board.heat + G.heatRate*dt));
+  G.peakHeat = Math.max(G.peakHeat||0,G.board.heat);
 
   G.computeRate = totalRate;
   const produced = totalRate * dt;
@@ -361,6 +816,7 @@ function tick(now){
   // 연산력 판매: 1 FLOPS = 1$/s (GDD 3.2)
   G.funds += produced;
 
+  checkComponentUnlocks();
   checkFluxMilestones();
   render();
   updateHUD();
@@ -385,6 +841,15 @@ function checkFluxMilestones(){
       log(`효율 마일스톤 달성: ${Math.round(thr*100)}% (+${reward} Flux)`);
     }
   }
+  if(!G.fluxFirsts.ledLit){
+    const ledLit = circuits.some(c => c.valid && c.allSwitchesOn && c.activeComps.some(([, , name]) => name === 'led'));
+    if(ledLit){
+      G.fluxFirsts.ledLit = true;
+      G.flux += 2;
+      toast('LED 최초 점등! Flux +2');
+      log('LED 디버그 회로 완성: Flux +2');
+    }
+  }
 }
 
 // =========================================================================
@@ -405,7 +870,7 @@ function render(){
   const activeCells = new Set();
   let anyInvalid = false;
   for(const c of circuits){
-    if(c.valid && c.allSwitchesOn) for(const [x,y] of c.nodes) activeCells.add(idx(x,y));
+    if(c.valid && c.allSwitchesOn) for(const [x,y] of c.closedNodes) activeCells.add(idx(x,y));
     if(!c.valid && c.comps.length) anyInvalid = true;
   }
 
@@ -420,25 +885,42 @@ function render(){
       ctx.lineWidth = active ? 4 : 3;
       drawWire(x,y,px,py);
     }
-    if(c.comp){
-      const d = COMPONENTS[c.comp];
-      ctx.fillStyle = d.color;
-      const m = CELL*0.16;
-      ctx.fillRect(px+m, py+m, CELL-2*m, CELL-2*m);
-      if(d.glow && active){
-        ctx.shadowColor='#fff7c0'; ctx.shadowBlur=18;
-        ctx.fillRect(px+m, py+m, CELL-2*m, CELL-2*m);
-        ctx.shadowBlur=0;
-      }
-      ctx.fillStyle = (c.comp==='led')?'#222':'#fff';
-      ctx.font = `${Math.floor(CELL*0.4)}px sans-serif`;
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(d.icon, px+CELL/2, py+CELL/2+1);
-      if(c.comp==='switch'){
-        ctx.fillStyle = c.on ? '#6bff8a' : '#ff5252';
-        ctx.fillRect(px+CELL-8, py+4, 4, 4);
-      }
+    if(c.comp && isComponentAnchor(x,y)){
+      drawPlacedComponent(x,y,activeCells);
     }
+  }
+
+  // 선택 부품 배치 미리보기
+  if(G.selected && hoverCell && !dragging && !eraseDrag){
+    const [x,y]=hoverCell;
+    const d=COMPONENTS[G.selected];
+    const footprint=componentCellsAt(x,y,G.selected,G.rotation);
+    const canPlace=canPlaceComponent(x,y,G.selected,G.rotation)
+      && (G.inventory?.[G.selected] || 0)>0;
+    ctx.save();
+    ctx.globalAlpha=0.55;
+    for(const [cx,cy] of footprint){
+      if(!inBounds(cx,cy)) continue;
+      const px=cx*CELL, py=cy*CELL, m=CELL*0.1;
+      ctx.fillStyle=canPlace ? d.color : '#ff5252';
+      ctx.fillRect(px+m,py+m,CELL-2*m,CELL-2*m);
+      ctx.globalAlpha=0.9;
+      ctx.strokeStyle=canPlace ? '#6bff8a' : '#ff8585';
+      ctx.lineWidth=2;
+      ctx.strokeRect(px+m,py+m,CELL-2*m,CELL-2*m);
+      ctx.globalAlpha=0.55;
+    }
+    ctx.fillStyle='#fff';
+    ctx.font=`${Math.floor(CELL*0.4)}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const center=componentVisualCenter(footprint);
+    ctx.save();
+    ctx.translate(center.x,center.y);
+    ctx.rotate((G.rotation||0)*Math.PI/2);
+    ctx.fillText(d.icon,0,1);
+    ctx.restore();
+    drawPreviewTerminals(x,y,G.selected,G.rotation,0.9);
+    ctx.restore();
   }
 
   // Heat 오버레이
@@ -451,10 +933,92 @@ function render(){
   canvas.classList.toggle('invalid', anyInvalid);
 }
 
+function componentVisualCenter(cells){
+  return {
+    x:(cells.reduce((sum,[x])=>sum+x,0)/cells.length+.5)*CELL,
+    y:(cells.reduce((sum,[,y])=>sum+y,0)/cells.length+.5)*CELL,
+  };
+}
+function drawPlacedComponent(x,y,activeCells){
+  const cell=G.board.cells[idx(x,y)], d=COMPONENTS[cell.comp];
+  const footprint=componentCellsAt(x,y);
+  const active=footprint.every(([cx,cy])=>activeCells.has(idx(cx,cy)));
+  for(const [cx,cy] of footprint){
+    const px=cx*CELL, py=cy*CELL, m=CELL*0.1;
+    ctx.fillStyle=d.color;
+    ctx.fillRect(px+m,py+m,CELL-2*m,CELL-2*m);
+    if(d.glow&&active){
+      ctx.shadowColor='#fff7c0';ctx.shadowBlur=18;
+      ctx.fillRect(px+m,py+m,CELL-2*m,CELL-2*m);ctx.shadowBlur=0;
+    }
+  }
+  const center=componentVisualCenter(footprint);
+  ctx.fillStyle=cell.comp==='led'?'#222':'#fff';
+  ctx.font=`${Math.floor(CELL*0.4)}px sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.save();ctx.translate(center.x,center.y);ctx.rotate((cell.rotation||0)*Math.PI/2);
+  ctx.fillText(d.icon,0,1);ctx.restore();
+  for(const [cx,cy] of footprint) drawComponentTerminals(cx,cy,1);
+  if(cell.comp==='switch'){
+    ctx.fillStyle=cell.on?'#6bff8a':'#ff5252';
+    ctx.fillRect(x*CELL+CELL-8,y*CELL+4,4,4);
+  }
+}
+function drawComponentTerminals(x,y,alpha=1){
+  const terminals=cellTerminalMap(x,y);
+  const radius=Math.max(2,CELL*0.065);
+  const px=x*CELL, py=y*CELL;
+  ctx.save();
+  ctx.globalAlpha*=alpha;
+  for(const [side,type] of Object.entries(terminals)){
+    let x=px+CELL/2, y=py+CELL/2;
+    if(side==='N') y=py+2;
+    if(side==='E') x=px+CELL-2;
+    if(side==='S') y=py+CELL-2;
+    if(side==='W') x=px+2;
+    ctx.beginPath();
+    ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fillStyle=type==='input' ? '#4fd1ff' : type==='output' ? '#f5c518' : '#d6a934';
+    ctx.fill();
+    ctx.strokeStyle='#07120a';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawPreviewTerminals(anchorX,anchorY,name,rotation,alpha=1){
+  const def=COMPONENTS[name];
+  if(!def.terminalCells){
+    const terminals=componentTerminalMap(name,rotation);
+    drawTerminalDots(anchorX,anchorY,terminals,alpha);
+    return;
+  }
+  for(const terminal of def.terminalCells){
+    const [dx,dy]=rotateOffset(terminal.offset,rotation);
+    drawTerminalDots(anchorX+dx,anchorY+dy,{
+      [rotatedSide(terminal.side,rotation)]:terminal.type,
+    },alpha);
+  }
+}
+function drawTerminalDots(x,y,terminals,alpha=1){
+  if(!inBounds(x,y)) return;
+  const radius=Math.max(2,CELL*0.065), px=x*CELL, py=y*CELL;
+  ctx.save();ctx.globalAlpha*=alpha;
+  for(const [side,type] of Object.entries(terminals)){
+    let tx=px+CELL/2,ty=py+CELL/2;
+    if(side==='N')ty=py+2;if(side==='E')tx=px+CELL-2;
+    if(side==='S')ty=py+CELL-2;if(side==='W')tx=px+2;
+    ctx.beginPath();ctx.arc(tx,ty,radius,0,Math.PI*2);
+    ctx.fillStyle=type==='input'?'#4fd1ff':type==='output'?'#f5c518':'#d6a934';
+    ctx.fill();ctx.strokeStyle='#07120a';ctx.lineWidth=1;ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawWire(x,y,px,py){
   const cx=px+CELL/2, cy=py+CELL/2;
   const cells=G.board.cells;
-  const conn=(nx,ny)=> inBounds(nx,ny) && (cells[idx(nx,ny)].wire||cells[idx(nx,ny)].comp);
+  const conn=(nx,ny)=> cellsConnected(x,y,nx,ny);
   const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
   let drew=false;
   for(const [dx,dy] of dirs){
@@ -469,12 +1033,12 @@ function drawWire(x,y,px,py){
 // =========================================================================
 //  입력 처리: 배선 드래그 / 부품 배치 / 삭제 / 스위치 토글
 // =========================================================================
-let dragging=false, eraseDrag=false;
+let dragging=false, eraseDrag=false, hoverCell=null, wireDragLast=null;
 
 function cellAt(ev){
   const r=canvas.getBoundingClientRect();
-  const x=Math.floor((ev.clientX-r.left)/CELL);
-  const y=Math.floor((ev.clientY-r.top)/CELL);
+  const x=Math.floor((ev.clientX-r.left)/r.width*G.board.size);
+  const y=Math.floor((ev.clientY-r.top)/r.height*G.board.size);
   return inBounds(x,y)?[x,y]:null;
 }
 
@@ -482,48 +1046,147 @@ canvas.addEventListener('mousedown', ev=>{
   const pos=cellAt(ev); if(!pos) return;
   const [x,y]=pos; const cell=G.board.cells[idx(x,y)];
 
-  if(ev.button===2){ eraseDrag=true; eraseCell(x,y); return; }
+  if(ev.button===2){ eraseDrag=true; eraseCell(x,y); hideComponentTooltip(); return; }
 
   // 스위치 토글
-  if(cell.comp==='switch'){ cell.on=!cell.on; log(`Switch ${cell.on?'ON':'OFF'}`); return; }
+  if(cell.comp==='switch'){
+    cell.on=!cell.on;
+    log(`Switch ${cell.on?'ON':'OFF'}`);
+    circuits=analyzeCircuits();
+    for(const circuit of circuits) circuit.rate=calculateCircuitRate(circuit);
+    showBoardComponentTooltip(x,y,ev.clientX,ev.clientY);
+    return;
+  }
 
-  if(G.tool==='erase'){ eraseDrag=true; eraseCell(x,y); return; }
+  if(G.tool==='erase'){ eraseDrag=true; eraseCell(x,y); hideComponentTooltip(); return; }
 
   if(G.selected){
     placeComponent(x,y,G.selected);
     return;
   }
   // 배선 모드
-  dragging=true; placeWire(x,y);
+  dragging=true;
+  wireDragLast=[x,y];
+  startWireAt(x,y);
 });
 
 canvas.addEventListener('mousemove', ev=>{
-  const pos=cellAt(ev); if(!pos) return;
+  const pos=cellAt(ev);
+  hoverCell=pos;
+  if(!pos){ hideComponentTooltip(); return; }
   const [x,y]=pos;
-  if(eraseDrag) eraseCell(x,y);
-  else if(dragging && !G.selected) placeWire(x,y);
+  if(eraseDrag){ eraseCell(x,y); hideComponentTooltip(); }
+  else if(dragging && !G.selected) continueWireDrag(x,y);
+  else showBoardCellTooltip(x,y,ev.clientX,ev.clientY);
 });
-window.addEventListener('mouseup', ()=>{ dragging=false; eraseDrag=false; });
+window.addEventListener('mouseup', ()=>{ dragging=false; eraseDrag=false; wireDragLast=null; });
+canvas.addEventListener('mouseleave', ()=>{ hoverCell=null; hideComponentTooltip(); });
 canvas.addEventListener('contextmenu', e=>e.preventDefault());
 
-function placeWire(x,y){
+function startWireAt(x,y){
   const c=G.board.cells[idx(x,y)];
-  if(c.comp) return;
-  c.wire=true; // GDD: Wire 무료
+  if(!c.comp){ c.wire=true; c.wireDirs=c.wireDirs||0; }
+}
+function continueWireDrag(x,y){
+  if(!wireDragLast){ wireDragLast=[x,y]; startWireAt(x,y); return; }
+  let [cx,cy]=wireDragLast;
+  if(cx===x&&cy===y) return;
+
+  while(cx!==x || cy!==y){
+    const dx=x===cx ? 0 : Math.sign(x-cx);
+    const dy=dx===0 ? Math.sign(y-cy) : 0;
+    const nx=cx+dx, ny=cy+dy;
+    if(!addWireSegment(cx,cy,nx,ny)) break;
+    cx=nx;cy=ny;
+  }
+  wireDragLast=[cx,cy];
+}
+function addWireSegment(x,y,nx,ny){
+  if(!inBounds(x,y)||!inBounds(nx,ny)) return false;
+  const dir=DIRECTIONS.find(d=>x+d.dx===nx&&y+d.dy===ny);
+  if(!dir) return false;
+  const a=G.board.cells[idx(x,y)],b=G.board.cells[idx(nx,ny)];
+  if(a.comp&&b.comp) return false;
+  if(a.comp&&!cellHasTerminal(x,y,dir.side)){
+    toast('해당 면에 부품 단자가 없습니다');
+    return false;
+  }
+  if(b.comp&&!cellHasTerminal(nx,ny,dir.opposite)){
+    toast('해당 면에 부품 단자가 없습니다');
+    return false;
+  }
+
+  const snapshotA={wire:a.wire,wireDirs:a.wireDirs||0};
+  const snapshotB={wire:b.wire,wireDirs:b.wireDirs||0};
+  if(!a.comp){a.wire=true;a.wireDirs=(a.wireDirs||0)|dir.bit;}
+  if(!b.comp){b.wire=true;b.wireDirs=(b.wireDirs||0)|dir.oppositeBit;}
+
+  if((!a.comp&&plainWireDegree(x,y)>2)||(!b.comp&&plainWireDegree(nx,ny)>2)){
+    a.wire=snapshotA.wire;a.wireDirs=snapshotA.wireDirs;
+    b.wire=snapshotB.wire;b.wireDirs=snapshotB.wireDirs;
+    toast('3방향 이상 분기에는 Junction이 필요합니다');
+    return false;
+  }
+  return true;
+}
+function canPlaceComponent(x,y,name,rotation=0,ignoreAnchor=null){
+  const cells=componentCellsAt(x,y,name,rotation);
+  if(!cells.length || cells.some(([cx,cy])=>!inBounds(cx,cy))) return false;
+  return cells.every(([cx,cy])=>{
+    const cell=G.board.cells[idx(cx,cy)];
+    if(ignoreAnchor){
+      const anchor=componentAnchorAt(cx,cy);
+      if(anchor && anchor[0]===ignoreAnchor[0] && anchor[1]===ignoreAnchor[1]) return true;
+    }
+    return !cell.comp && !cell.wire;
+  });
+}
+function plainWireDegree(x,y){
+  if(!inBounds(x,y)) return 0;
+  const cell=G.board.cells[idx(x,y)];
+  if(!cell.wire || cell.comp) return 0;
+  return DIRECTIONS.reduce((count,{dx,dy})=>count+(cellsConnected(x,y,x+dx,y+dy)?1:0),0);
 }
 function eraseCell(x,y){
   const c=G.board.cells[idx(x,y)];
-  c.wire=false; c.comp=null;
+  const anchor=componentAnchorAt(x,y);
+  const removedComponent=anchor ? G.board.cells[idx(anchor[0],anchor[1])].comp : null;
+  if(anchor){
+    for(const [cx,cy] of componentCellsAt(anchor[0],anchor[1])){
+      Object.assign(G.board.cells[idx(cx,cy)],{
+        wire:false,wireDirs:0,comp:null,on:true,rotation:0,anchorX:null,anchorY:null,
+      });
+    }
+  } else {
+    c.wire=false;
+    c.wireDirs=0;
+  }
+
+  if(removedComponent){
+    G.inventory[removedComponent] = (G.inventory?.[removedComponent] || 0) + 1;
+    const name = COMPONENTS[removedComponent]?.name || removedComponent;
+    log(`${name} 회수 - 재고로 이동`);
+    buildShop();
+  }
 }
 function placeComponent(x,y,name){
-  const c=G.board.cells[idx(x,y)];
   const def=COMPONENTS[name];
-  if(c.comp){ toast('이미 부품이 있습니다'); return; }
-  if(G.funds < def.cost){ toast('자금 부족'); return; }
-  G.funds -= def.cost;
-  c.comp=name; c.wire=false; c.on=true;
-  log(`${def.name} 배치 (-$${def.cost})`);
+  const inventoryStock = G.inventory?.[name] || 0;
+  if(!isComponentUnlocked(name)){ toast(`해금 조건: ${unlockText(name)}`); return; }
+  if(inventoryStock <= 0){ toast(`${def.name} 재고가 없습니다`); return; }
+  if(!canPlaceComponent(x,y,name,G.rotation||0)){
+    toast('부품 크기만큼 빈 공간이 필요합니다');
+    return;
+  }
+  G.inventory[name] = inventoryStock - 1;
+  for(const [cx,cy] of componentCellsAt(x,y,name,G.rotation||0)){
+    Object.assign(G.board.cells[idx(cx,cy)],{
+      comp:name,wire:false,wireDirs:0,on:true,rotation:G.rotation||0,anchorX:x,anchorY:y,
+    });
+  }
+  log(`${def.name} 배치 (재고 사용)`);
   maybeFirstSolder(name);
+  buildShop();
 }
 function maybeFirstSolder(name){
   const key='solder_'+name;
@@ -542,16 +1205,247 @@ function fmtCompute(v){
 }
 function fmtMoney(v){ return '$'+Math.floor(v).toLocaleString(); }
 
+const UNLOCKS={
+  firstCircuit:{
+    label:'첫 유효 회로 완성',
+    progress:()=>circuits.some(c=>c.valid) ? 1 : 0,
+    text:()=>circuits.some(c=>c.valid) ? '조건 달성' : '유효 회로를 1개 완성하세요',
+  },
+  compute10:{
+    label:'누적 10 FLOPS',
+    progress:()=>Math.min(1,G.totalCompute/10),
+    text:()=>`${Math.min(10,G.totalCompute).toFixed(1)} / 10 FLOPS`,
+  },
+  heat70:{
+    label:'Heat 70°C 도달',
+    progress:()=>Math.min(1,(G.peakHeat||0)/70),
+    text:()=>`${Math.min(70,G.peakHeat||0).toFixed(0)} / 70°C`,
+  },
+};
+function isComponentUnlocked(name){
+  const key=COMPONENTS[name]?.unlock;
+  return !key || Boolean(G.unlocked?.[name]);
+}
+function unlockProgress(name){
+  const rule=UNLOCKS[COMPONENTS[name]?.unlock];
+  return rule ? rule.progress() : 1;
+}
+function unlockText(name){
+  const rule=UNLOCKS[COMPONENTS[name]?.unlock];
+  return rule ? rule.text() : '';
+}
+function checkComponentUnlocks(){
+  let changed=false;
+  for(const name of SHOP_ORDER){
+    if(isComponentUnlocked(name)) continue;
+    if(unlockProgress(name)<1) continue;
+    G.unlocked[name]=true;
+    changed=true;
+    toast(`${COMPONENTS[name].name} 해금!`);
+    log(`${COMPONENTS[name].name} 해금: ${UNLOCKS[COMPONENTS[name].unlock].label}`);
+  }
+  if(changed) buildShop();
+}
+
+// =========================================================================
+//  부품 설명 툴팁
+// =========================================================================
+const componentTooltip=document.getElementById('componentTooltip');
+
+function tooltipRow(label,value,className=''){
+  return `<div class="tooltip-row"><span>${label}</span><strong class="${className}">${value}</strong></div>`;
+}
+function tooltipShell(d,rows){
+  return `<div class="tooltip-title"><span>${d.icon}</span><span>${d.name}</span><span class="tooltip-kind">${d.category}</span></div>
+    <div class="tooltip-role">${d.role}</div>
+    ${rows}
+    <div class="tooltip-tip">TIP · ${d.tip}</div>`;
+}
+function showComponentTooltip(html,clientX,clientY){
+  componentTooltip.innerHTML=html;
+  componentTooltip.classList.add('open');
+  componentTooltip.setAttribute('aria-hidden','false');
+
+  const gap=12, edge=10;
+  const rect=componentTooltip.getBoundingClientRect();
+  let left=clientX+gap;
+  let top=clientY+gap;
+  if(left+rect.width>window.innerWidth-edge) left=clientX-rect.width-gap;
+  if(top+rect.height>window.innerHeight-edge) top=clientY-rect.height-gap;
+  componentTooltip.style.left=Math.max(edge,left)+'px';
+  componentTooltip.style.top=Math.max(edge,top)+'px';
+}
+function hideComponentTooltip(){
+  componentTooltip.classList.remove('open');
+  componentTooltip.setAttribute('aria-hidden','true');
+}
+function showShopComponentTooltip(name,clientX,clientY){
+  const d=COMPONENTS[name];
+  const heatText=d.heat<0 ? `${d.heat}°C/s` : `+${d.heat}°C/s`;
+  const terminalText=d.kind==='routing' ? 'N · E · S · W 접점'
+    : d.terminalCells ? '입력 N · 출력 S'
+    : '입력 W · 출력 E';
+  const unlocked=isComponentUnlocked(name);
+  const rows=[
+    tooltipRow('주요 효과',d.effect),
+    tooltipRow('크기',d.footprint ? `${d.footprint.length}셀` : '1셀'),
+    tooltipRow('Heat',heatText),
+    tooltipRow('기본 단자',terminalText),
+    !unlocked ? tooltipRow('해금 조건',unlockText(name),'tooltip-status-bad') : '',
+    tooltipRow('회로 조건',d.requirement),
+    tooltipRow('구매 가격',fmtMoney(d.cost)),
+  ].join('');
+  showComponentTooltip(tooltipShell(d,rows),clientX,clientY);
+}
+function circuitAtComponent(x,y){
+  return circuits.find(c=>c.comps.some(([cx,cy])=>cx===x && cy===y)) || null;
+}
+function circuitAtNode(x,y){
+  return circuits.find(c=>c.nodes.some(([cx,cy])=>cx===x && cy===y)) || null;
+}
+function componentContribution(name,d,c,cell,onClosedPath){
+  if(c && !onClosedPath) return '닫힌 경로에 포함되지 않음';
+  if(!c || !c.valid) return d.effect;
+  if(name==='battery') return `회로 VL ${c.vl} 공급 중`;
+  if(name==='clock') return `Clock Modifier ×${c.clockModifier.toFixed(2)}`;
+  if(name==='logic'){
+    const contribution=c.base>0 ? c.rate*(d.base/c.base) : 0;
+    return `${fmtCompute(contribution)}/s 생산 기여`;
+  }
+  if(name==='resistor') return `Stability ×${c.stability.toFixed(2)}`;
+  if(name==='led') return c.allSwitchesOn ? 'LED 점등 중' : 'LED 꺼짐';
+  if(name==='switch') return cell.on ? 'Switch ON' : 'Switch OFF';
+  if(name==='heatsink') return 'Heat -5°C/s 냉각';
+  return d.effect;
+}
+function showBoardComponentTooltip(x,y,clientX,clientY){
+  const anchor=componentAnchorAt(x,y);
+  if(!anchor){ hideComponentTooltip(); return; }
+  const cell=G.board.cells[idx(anchor[0],anchor[1])];
+
+  const name=cell.comp;
+  const d=COMPONENTS[name];
+  const circuit=circuitAtComponent(anchor[0],anchor[1]);
+  const occupiedCells=componentCellsAt(anchor[0],anchor[1]);
+  const onClosedPath=Boolean(circuit && occupiedCells.every(([cx,cy])=>circuit.closedNodeKeys?.has(`${cx},${cy}`)));
+  let status='연결되지 않음';
+  let statusClass='tooltip-status-bad';
+  if(circuit){
+    if(!onClosedPath) status='정지 · 닫힌 경로 밖';
+    else if(!circuit.valid) status=`정지 · ${circuit.reason}`;
+    else if(!circuit.allSwitchesOn) status='정지 · Switch OFF';
+    else { status='작동 중'; statusClass='tooltip-status-ok'; }
+  }
+
+  let effectiveHeat=d.heat;
+  if(circuit && (circuit.compCounts?.clock || 0)>=2 && d.heat>0){
+    effectiveHeat*=circuit.compCounts.clock===2 ? 1.2 : 1.5;
+  }
+  const heatText=effectiveHeat<0 ? `${effectiveHeat.toFixed(1)}°C/s`
+    : effectiveHeat>0 ? `+${effectiveHeat.toFixed(1)}°C/s`
+    : '0.0°C/s';
+  const rows=[
+    tooltipRow('현재 상태',status,statusClass),
+    tooltipRow('단자 방향',terminalOrientationText(cell)),
+    tooltipRow('현재 기여',componentContribution(name,d,circuit,cell,onClosedPath)),
+    tooltipRow('Heat 기여',onClosedPath && circuit?.valid && circuit.allSwitchesOn ? heatText : '0.0°C/s'),
+    tooltipRow('회로 출력',circuit ? `${fmtCompute(circuit.rate)}/s` : '0.0 FLOPS/s'),
+  ].join('');
+  showComponentTooltip(tooltipShell(d,rows),clientX,clientY);
+}
+function showBoardCellTooltip(x,y,clientX,clientY){
+  const cell=G.board.cells[idx(x,y)];
+  if(cell?.comp){ showBoardComponentTooltip(x,y,clientX,clientY); return; }
+  if(cell?.wire){ showWireTooltip(x,y,clientX,clientY); return; }
+  hideComponentTooltip();
+}
+function wireConnectionSides(x,y){
+  return DIRECTIONS
+    .filter(({dx,dy})=>cellsConnected(x,y,x+dx,y+dy))
+    .map(({side})=>side);
+}
+function showWireTooltip(x,y,clientX,clientY){
+  const circuit=circuitAtNode(x,y);
+  const onClosedPath=Boolean(circuit?.closedNodeKeys?.has(`${x},${y}`));
+  const illegalBranch=Boolean(circuits.invalidWireBranches?.some(([wx,wy])=>wx===x&&wy===y));
+  const sides=wireConnectionSides(x,y);
+
+  let status='열린 배선';
+  let statusClass='tooltip-status-bad';
+  if(illegalBranch) status='오류 · Junction 필요';
+  else if(circuit?.valid && circuit.allSwitchesOn && onClosedPath){
+    status='활성 전류 흐름';
+    statusClass='tooltip-status-ok';
+  } else if(circuit?.valid && !circuit.allSwitchesOn && onClosedPath) status='정지 · Switch OFF';
+  else if(circuit?.valid && !onClosedPath) status='정지 · 닫힌 경로 밖';
+  else if(circuit && circuit.comps.length===0) status='열린 배선';
+  else if(circuit) status=`정지 · ${circuit.reason || '닫힌 경로 아님'}`;
+
+  const rows=[
+    tooltipRow('현재 상태',status,statusClass),
+    tooltipRow('연결 방향',sides.length ? sides.join(' · ') : '연결 없음'),
+    tooltipRow('연결 수',`${sides.length}방향`),
+    tooltipRow('닫힌 경로',onClosedPath ? '포함' : '미포함'),
+    tooltipRow('회로 출력',circuit ? `${fmtCompute(circuit.rate)}/s` : '0.0 FLOPS/s'),
+    tooltipRow('Wire Efficiency',circuit?.valid ? `${(circuit.wireEff*100).toFixed(1)}%` : '-'),
+  ].join('');
+  const wireDef={
+    icon:'━', name:'Wire', category:'배선',
+    role:'부품과 접점을 연결해 전류가 흐를 경로를 만듭니다.',
+    tip:illegalBranch
+      ? '일반 전선은 최대 두 방향만 연결됩니다. 이 위치를 Junction으로 교체하세요.'
+      : '노란색은 활성 닫힌 경로, 어두운 색은 정지하거나 열린 배선을 뜻합니다.',
+  };
+  showComponentTooltip(tooltipShell(wireDef,rows),clientX,clientY);
+}
+function terminalOrientationText(cell){
+  if(COMPONENTS[cell.comp]?.terminalCells){
+    const terminals=COMPONENTS[cell.comp].terminalCells.map(terminal=>{
+      return `${terminal.type==='input'?'입력':'출력'} ${rotatedSide(terminal.side,cell.rotation)}`;
+    });
+    return terminals.join(' · ');
+  }
+  const terminals=componentTerminalMap(cell.comp,cell.rotation);
+  if(Object.values(terminals).every(type=>type==='junction')) return 'N · E · S · W 연결';
+  const input=Object.keys(terminals).find(side=>terminals[side]==='input');
+  const output=Object.keys(terminals).find(side=>terminals[side]==='output');
+  return `입력 ${input} · 출력 ${output}`;
+}
+
 function buildShop(){
   const list=document.getElementById('shopList'); list.innerHTML='';
   for(const name of SHOP_ORDER){
     const d=COMPONENTS[name];
-    const el=document.createElement('div'); el.className='item'+(G.selected===name?' selected':'');
+    const unlocked=isComponentUnlocked(name);
+    const starterStock = G.starterStock?.[name] || 0;
+    const inventoryStock = G.inventory?.[name] || 0;
+    const stockLabel = inventoryStock > 0 ? `<div class="stock">재고 ${inventoryStock}개</div>` : '';
+    const lockLabel = !unlocked ? `<div class="lock">🔒 ${unlockText(name)}</div>` : '';
+    const canBuy = unlocked && (starterStock > 0 || G.funds >= d.cost);
+    const el=document.createElement('div');
+    el.className='item'+(G.selected===name?' selected':'')+(unlocked?'':' locked');
+    el.dataset.component=name;
     el.innerHTML=`<div class="ico" style="background:${d.color}33">${d.icon}</div>
       <div class="meta"><div class="name">${d.name}</div>
-      <div class="desc">${componentDesc(d)}</div></div>
-      <button>${fmtMoney(d.cost)}</button>`;
-    el.querySelector('button').onclick=(e)=>{ e.stopPropagation(); G.selected = (G.selected===name?null:name); G.tool='place'; refreshTools(); buildShop(); };
+      <div class="desc">${componentDesc(d)}</div>${stockLabel}${lockLabel}</div>
+      <button ${canBuy?'':'disabled'}>${unlocked ? (starterStock > 0 ? `무료 ×${starterStock}` : fmtMoney(d.cost)) : '잠김'}</button>`;
+    el.onclick=()=>{
+      if(!isComponentUnlocked(name)){ toast(`해금 조건: ${unlockText(name)}`); return; }
+      const changing=G.selected!==name;
+      G.selected=changing ? name : null;
+      if(changing) G.rotation=0;
+      G.tool=G.selected ? 'place' : 'wire';
+      refreshTools();
+      buildShop();
+      updateSelectionStatus();
+    };
+    el.querySelector('button').onclick=e=>{
+      e.stopPropagation();
+      buyComponent(name);
+    };
+    el.addEventListener('mouseenter',e=>showShopComponentTooltip(name,e.clientX,e.clientY));
+    el.addEventListener('mousemove',e=>showShopComponentTooltip(name,e.clientX,e.clientY));
+    el.addEventListener('mouseleave',hideComponentTooltip);
     list.appendChild(el);
   }
   const gu=document.getElementById('gridUpgrade'); gu.innerHTML='';
@@ -567,10 +1461,31 @@ function buildShop(){
     gu.innerHTML='<div class="desc" style="color:var(--muted);font-size:12px">최대 확장됨 (프로토타입)</div>';
   }
 }
+function buyComponent(name){
+  const d=COMPONENTS[name];
+  if(!isComponentUnlocked(name)){ toast(`해금 조건: ${unlockText(name)}`); return; }
+  const starterStock=G.starterStock?.[name] || 0;
+  if(starterStock > 0){
+    G.starterStock[name]=starterStock-1;
+    G.inventory[name]=(G.inventory?.[name] || 0)+1;
+    log(`${d.name} 무료 지급품 수령`);
+  } else {
+    if(G.funds < d.cost){ toast('자금 부족'); return; }
+    G.funds-=d.cost;
+    G.inventory[name]=(G.inventory?.[name] || 0)+1;
+    log(`${d.name} 구매 (-$${d.cost})`);
+  }
+  buildShop();
+  updateHUD();
+}
 function componentDesc(d){
   if(d.kind==='power') return `전원 · VL ${d.vl} · ${d.heat}°C/s`;
-  if(d.kind==='output') return `출력 ${d.base} FLOPS · VR ${d.vr} · ${d.heat}°C/s`;
-  if(d.kind==='thermal') return `냉각 ${d.heat}°C/s`;
+  if(d.kind==='clock') return `연산 주기 · VR ${d.vr} · ${d.heat}°C/s`;
+  if(d.kind==='compute') return `연산 ${d.base} FLOPS · VR ${d.vr} · ${d.heat}°C/s`;
+  if(d.kind==='passive') return `안정화 · ${d.heat}°C/s`;
+  if(d.kind==='feedback') return `디버그 표시 · ${d.heat}°C/s`;
+  if(d.kind==='routing') return '4방향 분기 접점';
+  if(d.kind==='thermal') return `${d.footprint?.length||1}셀 · 냉각 ${d.heat}°C/s`;
   if(d.kind==='control') return `회로 ON/OFF 제어`;
   return '';
 }
@@ -595,13 +1510,75 @@ function expandGrid(){
 function refreshTools(){
   document.getElementById('toolWire').classList.toggle('active', G.tool==='wire');
   document.getElementById('toolErase').classList.toggle('active', G.tool==='erase');
+  document.getElementById('rotateComponent').disabled=!G.selected;
 }
-document.getElementById('toolWire').onclick=()=>{ G.tool='wire'; G.selected=null; refreshTools(); buildShop(); };
-document.getElementById('toolErase').onclick=()=>{ G.tool='erase'; G.selected=null; refreshTools(); buildShop(); };
+function rotateSelection(){
+  if(G.selected){
+    G.rotation=((G.rotation||0)+1)%4;
+    updateSelectionStatus();
+    render();
+    return;
+  }
+  if(!hoverCell) return;
+  const [x,y]=hoverCell;
+  const anchor=componentAnchorAt(x,y);
+  if(!anchor) return;
+  const anchorCell=G.board.cells[idx(anchor[0],anchor[1])];
+  const oldRotation=anchorCell.rotation||0;
+  const newRotation=(oldRotation+1)%4;
+  const oldCells=componentCellsAt(anchor[0],anchor[1]);
+  if(!canPlaceComponent(anchor[0],anchor[1],anchorCell.comp,newRotation,anchor)){
+    toast('회전할 공간이 부족합니다');
+    return;
+  }
+  const snapshot={
+    comp:anchorCell.comp,on:anchorCell.on,rotation:newRotation,
+    anchorX:anchor[0],anchorY:anchor[1],
+  };
+  for(const [cx,cy] of oldCells){
+    Object.assign(G.board.cells[idx(cx,cy)],{
+      comp:null,wireDirs:0,on:true,rotation:0,anchorX:null,anchorY:null,
+    });
+  }
+  for(const [cx,cy] of componentCellsAt(anchor[0],anchor[1],snapshot.comp,newRotation)){
+    Object.assign(G.board.cells[idx(cx,cy)],snapshot);
+  }
+  circuits=analyzeCircuits();
+  for(const circuit of circuits) circuit.rate=calculateCircuitRate(circuit);
+  log(`${COMPONENTS[snapshot.comp].name} 회전`);
+  updateHUD();
+  render();
+}
+function cancelSelection(){
+  G.selected=null;
+  G.rotation=0;
+  G.tool='wire';
+  refreshTools();
+  buildShop();
+  updateSelectionStatus();
+}
+function updateSelectionStatus(){
+  const el=document.getElementById('selectionStatus');
+  if(!G.selected){
+    el.classList.remove('open');
+    return;
+  }
+  const d=COMPONENTS[G.selected];
+  document.getElementById('selectedIcon').textContent=d.icon;
+  document.getElementById('selectedName').textContent=d.name;
+  const orientation=(G.rotation||0)%2===0 ? '가로' : '세로';
+  document.getElementById('selectedStock').textContent=`재고 ${G.inventory?.[G.selected] || 0}개 · ${orientation}`;
+  el.classList.add('open');
+}
+document.getElementById('cancelSelection').onclick=cancelSelection;
+document.getElementById('rotateComponent').onclick=rotateSelection;
+document.getElementById('toolWire').onclick=cancelSelection;
+document.getElementById('toolErase').onclick=()=>{ G.tool='erase'; G.selected=null; refreshTools(); buildShop(); updateSelectionStatus(); };
 
 // 탭 전환
 document.querySelectorAll('.tabs button').forEach(b=>{
   b.onclick=()=>{
+    hideComponentTooltip();
     document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
     const tab=b.dataset.tab;
@@ -644,6 +1621,7 @@ function buildStats(){
     <div class="statline"><span>평균 효율</span><span class="v">${(avgEff*100).toFixed(1)}% (Cap ${Math.round(G.conductorCap*100)}%)</span></div>
     <div class="statline"><span>최고 효율</span><span class="v">${(bestEfficiency()*100).toFixed(1)}%</span></div>
     <div class="statline"><span>Heat</span><span class="v">${G.board.heat.toFixed(1)}°C / ${G.board.maxHeat}°C</span></div>
+    <div class="statline"><span>Heat 변화율</span><span class="v">${formatHeatRate(G.heatRate)}</span></div>
     <div class="statline"><span>Flux</span><span class="v">${G.flux}</span></div>
   `;
 }
@@ -652,6 +1630,10 @@ function updateHUD(){
   document.getElementById('hFunds').textContent=fmtMoney(G.funds);
   document.getElementById('hCompute').textContent='+'+fmtCompute(G.computeRate);
   document.getElementById('hHeat').textContent=G.board.heat.toFixed(0)+'°C';
+  const heatRateEl=document.getElementById('hHeatRate');
+  heatRateEl.textContent=formatHeatRate(G.heatRate);
+  heatRateEl.classList.toggle('heating',G.heatRate>0.05);
+  heatRateEl.classList.toggle('cooling',G.heatRate<-0.05);
   document.getElementById('hHeatBar').style.width=Math.min(100,G.board.heat/G.board.maxHeat*100)+'%';
   document.getElementById('hFlux').textContent=G.flux;
   document.getElementById('hBP').textContent=G.bp;
@@ -659,11 +1641,109 @@ function updateHUD(){
   const valid=circuits.filter(c=>c.valid).length;
   const invalid=circuits.filter(c=>!c.valid && c.comps.length).length;
   document.getElementById('circuitInfo').textContent=`회로: ✓${valid} ✗${invalid}`;
+  updateTutorial();
+  updateCircuitIssues();
+  updateSelectionStatus();
 
   // 상점 버튼 활성/비활성 갱신 (가벼운 처리)
   document.querySelectorAll('#shopList .item button').forEach((btn,i)=>{
-    const d=COMPONENTS[SHOP_ORDER[i]]; if(d) btn.disabled = G.funds < d.cost;
+    const name = SHOP_ORDER[i];
+    const d=COMPONENTS[name];
+    const starterStock = G.starterStock?.[name] || 0;
+    if(d) btn.disabled = !isComponentUnlocked(name) || (starterStock <= 0 && G.funds < d.cost);
   });
+  document.querySelectorAll('#shopList .item.locked').forEach(el=>{
+    const lock=el.querySelector('.lock');
+    if(lock) lock.textContent=`🔒 ${unlockText(el.dataset.component)}`;
+  });
+}
+function formatHeatRate(value){
+  if(Math.abs(value)<0.05) return '±0.0°C/s';
+  return `${value>0?'+':''}${value.toFixed(1)}°C/s`;
+}
+
+// =========================================================================
+//  튜토리얼 목표 / 회로 진단
+// =========================================================================
+const TUTORIAL_STEPS=[
+  { title:'무료 부품 받기', copy:'무료 버튼을 눌러 Battery, Clock, Logic Cell, Resistor를 재고에 넣으세요.' },
+  { title:'기본 부품 배치', copy:'받은 부품을 배치하세요. R키로 회전하며 파란 입력과 노란 출력을 확인할 수 있습니다.' },
+  { title:'부품 연결', copy:'전선을 부품 단자에 연결해 네 부품을 하나의 회로로 만드세요.' },
+  { title:'닫힌 회로 만들기', copy:'전선의 시작과 끝을 연결해 전류가 순환하는 닫힌 루프를 만드세요.' },
+  { title:'연산 시작', copy:'유효 회로를 작동시켜 누적 5 FLOPS를 생산하세요.' },
+];
+function boardComponentCounts(){
+  const counts={};
+  for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+    const cell=G.board.cells[idx(x,y)];
+    if(cell.comp && isComponentAnchor(x,y)) counts[cell.comp]=(counts[cell.comp]||0)+1;
+  }
+  return counts;
+}
+function tutorialStepComplete(step){
+  if(step===0) return ['battery','clock','logic','resistor'].every(name=>(G.starterStock?.[name] || 0)===0);
+  if(step===1){
+    const counts=boardComponentCounts();
+    return ['battery','clock','logic','resistor'].every(name=>(counts[name] || 0)>0);
+  }
+  if(step===2) return circuits.some(c=>['battery','clock','logic','resistor'].every(name=>(c.allCompCounts?.[name] || 0)>0));
+  if(step===3) return circuits.some(c=>c.valid);
+  if(step===4) return G.totalCompute>=5;
+  return true;
+}
+function updateTutorial(){
+  let advanced=false;
+  while(G.tutorialStep<TUTORIAL_STEPS.length && tutorialStepComplete(G.tutorialStep)){
+    G.tutorialStep++;
+    advanced=true;
+  }
+  if(advanced && G.tutorialStep<TUTORIAL_STEPS.length) log(`새 목표: ${TUTORIAL_STEPS[G.tutorialStep].title}`);
+
+  const label=document.getElementById('tutorialProgressLabel');
+  const title=document.getElementById('tutorialTitle');
+  const copy=document.getElementById('tutorialCopy');
+  const bar=document.getElementById('tutorialProgressBar');
+  if(G.tutorialStep>=TUTORIAL_STEPS.length){
+    label.textContent='Tutorial 완료';
+    title.textContent='기본 회로 완성';
+    copy.textContent='이제 회로를 확장하고 효율과 Heat를 조정해 생산량을 높이세요.';
+    bar.style.width='100%';
+    return;
+  }
+  const step=TUTORIAL_STEPS[G.tutorialStep];
+  label.textContent=`Tutorial ${G.tutorialStep+1}/${TUTORIAL_STEPS.length}`;
+  title.textContent=step.title;
+  copy.textContent=step.copy;
+  bar.style.width=`${G.tutorialStep/TUTORIAL_STEPS.length*100}%`;
+}
+let circuitIssueSignature='';
+function updateCircuitIssues(){
+  const issueEl=document.getElementById('circuitIssues');
+  const withComponents=circuits.filter(c=>c.comps.length);
+  let html='';
+  if(!withComponents.length){
+    html='<div class="circuit-issue">○ 회로 진단 대기 중</div>';
+  } else {
+    const issues=[];
+    if(circuits.invalidWireBranches?.length) issues.push(`일반 전선 분기 ${circuits.invalidWireBranches.length}곳 · Junction 필요`);
+    if(circuits.invalidContacts?.length) issues.push(`단자 방향 불일치 ${circuits.invalidContacts.length}곳`);
+    if(circuits.junctionWarnings?.length) issues.push(`Junction 연결 부족 ${circuits.junctionWarnings.length}곳`);
+    withComponents.forEach((c,i)=>{
+      if(!c.valid) issues.push(`회로 ${i+1}: ${c.reason}`);
+      else if(!c.allSwitchesOn) issues.push(`회로 ${i+1}: Switch OFF`);
+      else if(c.offPathCompCount>0) issues.push(`회로 ${i+1}: 경로 밖 부품 ${c.offPathCompCount}개`);
+    });
+    html=issues.length
+      ? issues.slice(0,3).map(text=>{
+          const warning=text.includes('경로 밖 부품') || text.includes('Junction 연결 부족');
+          return `<div class="circuit-issue${warning?' circuit-warning':''}">${warning?'△':'!'} ${text}</div>`;
+        }).join('')
+      : `<div class="circuit-issue circuit-ok">✓ 유효 회로 ${withComponents.length}개 작동 중</div>`;
+  }
+  if(html!==circuitIssueSignature){
+    issueEl.innerHTML=html;
+    circuitIssueSignature=html;
+  }
 }
 
 let logTimer=null;
@@ -674,22 +1754,127 @@ function toast(msg){
 }
 
 // =========================================================================
+//  설정
+// =========================================================================
+const settingsModal=document.getElementById('settingsModal');
+const resetGameButton=document.getElementById('resetGameButton');
+let resetArmed=false;
+let resetInProgress=false;
+
+function openSettings(){
+  settingsModal.classList.add('open');
+  settingsModal.setAttribute('aria-hidden','false');
+  resetGameButton.focus();
+}
+function closeSettings(){
+  settingsModal.classList.remove('open');
+  settingsModal.setAttribute('aria-hidden','true');
+  resetArmed=false;
+  resetGameButton.textContent='초기화';
+  resetGameButton.classList.remove('confirm');
+}
+document.getElementById('settingsButton').onclick=openSettings;
+document.getElementById('settingsClose').onclick=closeSettings;
+settingsModal.addEventListener('mousedown', e=>{ if(e.target===settingsModal) closeSettings(); });
+document.addEventListener('keydown', e=>{
+  if(e.key==='r' || e.key==='R'){
+    if(!settingsModal.classList.contains('open')) rotateSelection();
+    return;
+  }
+  if(e.key==='Escape'){
+    if(settingsModal.classList.contains('open')) closeSettings();
+    else if(G.selected) cancelSelection();
+  }
+});
+resetGameButton.onclick=()=>{
+  if(!resetArmed){
+    resetArmed=true;
+    resetGameButton.textContent='정말 초기화';
+    resetGameButton.classList.add('confirm');
+    return;
+  }
+  resetInProgress=true;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+};
+
+// =========================================================================
 //  세이브 / 로드
 // =========================================================================
-const SAVE_KEY='circuitforge_proto_v1';
+const SAVE_KEY='circuitforge_proto_v2';
 function save(){
+  if(resetInProgress) return;
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify({
     funds:G.funds, flux:G.flux, bp:G.bp, totalCompute:G.totalCompute,
     conductorCap:G.conductorCap, gridLevel:G.gridLevel,
     board:G.board, fluxFirsts:G.fluxFirsts,
+    starterStock:G.starterStock, inventory:G.inventory,
+    tutorialStep:G.tutorialStep, unlocked:G.unlocked, peakHeat:G.peakHeat,
   })); }catch(e){}
 }
 function load(){
   try{
     const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(!s) return false;
     Object.assign(G, {funds:s.funds, flux:s.flux, bp:s.bp, totalCompute:s.totalCompute,
-      conductorCap:s.conductorCap||0.95, gridLevel:s.gridLevel||0, fluxFirsts:s.fluxFirsts||{}});
-    if(s.board && s.board.cells){ G.board=s.board; if(G.board.maxHeat==null)G.board.maxHeat=100; }
+      conductorCap:s.conductorCap||0.95, gridLevel:s.gridLevel||0,
+      fluxFirsts:s.fluxFirsts||{}, starterStock:s.starterStock||{},
+      inventory:s.inventory||{}, tutorialStep:s.tutorialStep||0,
+      unlocked:s.unlocked||{}, peakHeat:s.peakHeat||s.board?.heat||0});
+    if(s.board && s.board.cells){
+      G.board=s.board;
+      if(G.board.maxHeat==null) G.board.maxHeat=100;
+      const legacyWires=[];
+      for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+        const cell=G.board.cells[idx(x,y)];
+        if(cell.wire && cell.wireDirs==null) legacyWires.push([x,y]);
+        if(!cell.wire && cell.wireDirs==null) cell.wireDirs=0;
+        if(cell.rotation==null) cell.rotation=0;
+        if(cell.on==null) cell.on=true;
+        if(cell.anchorX==null && cell.comp){ cell.anchorX=x; cell.anchorY=y; }
+        if(cell.anchorX==null){ cell.anchorX=null; cell.anchorY=null; }
+        if(cell.comp && COMPONENTS[cell.comp]?.unlock) G.unlocked[cell.comp]=true;
+      }
+      const legacyMulti=[];
+      for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+        const cell=G.board.cells[idx(x,y)];
+        if(!cell.comp || !isComponentAnchor(x,y) || !COMPONENTS[cell.comp]?.footprint) continue;
+        const expected=componentCellsAt(x,y);
+        const complete=expected.every(([cx,cy])=>inBounds(cx,cy)
+          && G.board.cells[idx(cx,cy)].comp===cell.comp
+          && componentAnchorAt(cx,cy)?.join(',')===`${x},${y}`);
+        if(!complete) legacyMulti.push([x,y,cell.comp]);
+      }
+      for(const [x,y,name] of legacyMulti){
+        const anchorCell=G.board.cells[idx(x,y)];
+        let rotation=[0,1,2,3].find(r=>canPlaceComponent(x,y,name,r,[x,y]));
+        if(rotation==null){
+          G.inventory[name]=(G.inventory[name]||0)+1;
+          Object.assign(anchorCell,{comp:null,wireDirs:0,rotation:0,anchorX:null,anchorY:null});
+          continue;
+        }
+        anchorCell.rotation=rotation;
+        for(const [cx,cy] of componentCellsAt(x,y,name,rotation)){
+          Object.assign(G.board.cells[idx(cx,cy)],{
+            comp:name,wire:false,wireDirs:0,on:anchorCell.on,rotation,anchorX:x,anchorY:y,
+          });
+        }
+      }
+      for(const [x,y] of legacyWires){
+        const cell=G.board.cells[idx(x,y)];
+        if(!cell.wire) continue;
+        let mask=0;
+        for(const dir of DIRECTIONS){
+          const nx=x+dir.dx,ny=y+dir.dy;
+          if(!inBounds(nx,ny)) continue;
+          const neighbor=G.board.cells[idx(nx,ny)];
+          if(neighbor.wire || (neighbor.comp&&cellHasTerminal(nx,ny,dir.opposite))){
+            mask|=dir.bit;
+          }
+        }
+        cell.wireDirs=mask;
+      }
+      for(const [name,count] of Object.entries(G.inventory)) if(count>0 && COMPONENTS[name]?.unlock) G.unlocked[name]=true;
+    }
     return true;
   }catch(e){ return false; }
 }
@@ -697,16 +1882,16 @@ setInterval(save, 5000);
 window.addEventListener('beforeunload', save);
 
 // =========================================================================
-//  초기화 (튜토리얼 시드: 배터리1 + 저항2 무료, GDD 12.1)
+//  초기화 (튜토리얼 시드: Battery + Clock + Logic Cell + Resistor 무료, GDD 12.1)
 // =========================================================================
 function init(){
   const loaded=load();
   fitCanvas();
   if(!loaded){
     G.funds=0;
-    // 무료 시드 부품 인벤토리 대신 직접 배치 권유 → 시작 자금 약간 지급
-    G.funds=70; // 배터리1(무료 튜토) 대신 초반 구매 가능하도록
-    log('튜토리얼: 배터리·저항을 배치하고 전선으로 닫힌 사각 루프를 만들어 보세요.');
+    G.starterStock = { battery:1, clock:1, logic:1, resistor:1 };
+    G.inventory = {};
+    log('튜토리얼: Battery, Clock, Logic Cell, Resistor를 배치하고 전선으로 닫힌 루프를 만들어 보세요.');
   }
   buildShop(); refreshTools(); updateHUD();
   requestAnimationFrame(t=>{ lastTick=t; tick(t); });
