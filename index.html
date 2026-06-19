@@ -34,11 +34,17 @@
     border-bottom: 1px solid #000; flex-wrap: wrap;
   }
   header .stat { display: flex; flex-direction: column; line-height: 1.1; min-width: 90px; }
+  header .stat.thermal { min-width: 170px; }
   header .stat .label { font-size: 11px; color: var(--muted); }
   header .stat .val { font-size: 18px; font-weight: 600; }
   header .stat .subval { margin-top: 2px; font-size: 11px; color: var(--muted); }
   header .stat .subval.heating { color: #ff8585; }
   header .stat .subval.cooling { color: #70d7ff; }
+  #hHeatState { margin-left: 5px; color: var(--ok); font-size: 10px; }
+  #hHeatState.warning { color: #f5c518; }
+  #hHeatState.danger { color: #ff9b64; }
+  #hHeatState.critical { color: #ff6262; }
+  #hHeatBreakdown { white-space: nowrap; }
   header .title { font-weight: 700; letter-spacing: .5px; margin-right: auto; color: var(--accent); }
   .icon-button {
     width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
@@ -47,7 +53,10 @@
   }
   .icon-button:hover { border-color: var(--accent); color: var(--accent); }
   .heatbar { width: 120px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin-top: 3px; }
-  .heatbar > div { height: 100%; background: linear-gradient(90deg,#3fa34d,#f5c518,#ff5252); width: 0%; transition: width .2s; }
+  .heatbar > div { height: 100%; background: #3fa34d; width: 0%; transition: width .2s, background .2s; }
+  .heatbar > div.warning { background: #f5c518; }
+  .heatbar > div.danger { background: #ff8b3d; }
+  .heatbar > div.critical { background: #ff5252; }
 
   /* MAIN */
   main { display: flex; flex: 1; min-height: 0; }
@@ -57,10 +66,14 @@
     background: radial-gradient(circle at 50% 40%, #0f2410, #07120a);
     position: relative; overflow: auto; padding: 16px;
   }
-  #boardWrap { display: flex; flex-direction: column; align-items: stretch; gap: 7px; }
-  canvas { background: var(--pcb-bg); border: 2px solid #1f3f1f; border-radius: 4px; image-rendering: pixelated; cursor: crosshair; }
+  #boardWrap { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+  canvas {
+    flex: none; align-self: flex-start;
+    background: var(--pcb-bg); border: 2px solid #1f3f1f;
+    border-radius: 4px; image-rendering: pixelated; cursor: crosshair;
+  }
   canvas.invalid { border-color: var(--danger); box-shadow: 0 0 12px rgba(255,82,82,.5); }
-  #boardTop { display: flex; align-items: center; gap: 7px; min-height: 29px; }
+  #boardTop { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-height: 29px; }
   #hint {
     flex: 1; min-width: 0; font-size: 11px; color: var(--muted); white-space: nowrap;
     background: #10171c; border: 1px solid #263139;
@@ -194,14 +207,16 @@
     <div class="title">⚡ CIRCUIT FORGE <span class="pill">prototype</span></div>
     <div class="stat"><span class="label">💰 자금</span><span class="val" id="hFunds">$0</span></div>
     <div class="stat"><span class="label">⚙ 연산력</span><span class="val" id="hCompute">0 FLOPS</span></div>
-    <div class="stat">
-      <span class="label">🌡 Heat</span>
-      <span class="val" id="hHeat">0°C</span>
+    <div class="stat thermal">
+      <span class="label">🌡 최고 온도 <strong id="hHeatState">안정</strong></span>
+      <span class="val" id="hHeat">22°C</span>
       <span class="subval" id="hHeatRate">±0.0°C/s</span>
+      <span class="subval" id="hHeatBreakdown">평균 22°C · Heatsink 0개</span>
       <div class="heatbar"><div id="hHeatBar"></div></div>
     </div>
     <div class="stat"><span class="label">✦ Flux</span><span class="val" id="hFlux">0</span></div>
     <div class="stat"><span class="label">🔵 BP</span><span class="val" id="hBP">0</span></div>
+    <button class="icon-button" id="helpButton" type="button" aria-label="전기 기초 도움말" title="전기 기초 (옴의 법칙)">📖</button>
     <button class="icon-button" id="settingsButton" type="button" aria-label="설정 열기" title="설정">⚙</button>
   </header>
 
@@ -276,38 +291,76 @@
   </section>
 </div>
 
+<div class="modal-backdrop" id="helpModal" aria-hidden="true">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle" style="max-width:560px">
+    <div class="modal-header">
+      <h2 id="helpTitle">⚡ 전기 기초 — 옴의 법칙</h2>
+      <button class="icon-button" id="helpClose" type="button" aria-label="닫기" title="닫기">×</button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow:auto;line-height:1.65;font-size:13px">
+      <p style="margin:0 0 10px"><strong>이 게임의 회로는 실제 전기처럼 작동합니다.</strong> 핵심은 단 하나의 공식입니다.</p>
+      <div style="background:#10241a;border:1px solid #1f3a2a;border-radius:8px;padding:12px;text-align:center;font-size:16px;margin-bottom:12px">
+        전류 <strong style="color:#f5c518">I</strong> = 기전력 <strong style="color:#4fd1ff">V</strong> ÷ 총저항 <strong style="color:#ff8a5a">R</strong>
+      </div>
+      <p style="margin:0 0 6px"><strong>① 전류가 모든 것을 결정</strong><br>
+      배터리는 전압(기전력 V)을 만들고, 부품과 전선은 저항(R)을 가집니다. 회로에 흐르는 전류 I는 V를 전체 저항으로 나눈 값입니다. 전압을 올리거나 저항을 줄이면 전류가 늘어납니다.</p>
+      <p style="margin:8px 0 6px"><strong>② 출력 = 전류에 비례</strong><br>
+      Logic Cell의 FLOPS는 흐르는 전류에 비례합니다. 전류가 많을수록 더 많이 계산합니다.</p>
+      <p style="margin:8px 0 6px"><strong>③ 발열 = I²R (줄열)</strong><br>
+      부품 발열은 <em>전류의 제곱 × 그 부품의 저항</em>입니다. 전류가 2배면 발열은 4배! 저항이 큰 <strong>Logic Cell이 가장 뜨겁고</strong>, 배터리·클럭은 저항이 작아 거의 식어 있습니다. 100°C를 넘으면 영구 고장입니다.</p>
+      <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:12px">
+        <tr style="color:var(--muted)"><td>부품</td><td>저항(R)</td><td>특징</td></tr>
+        <tr><td>🔋 Battery</td><td>내부 0.5Ω↓</td><td>전압원. 티어↑일수록 강함</td></tr>
+        <tr><td>⏱ Clock</td><td>0.4Ω</td><td>저전력, 거의 안 뜨거움</td></tr>
+        <tr><td>▣ Logic Cell</td><td>2.0Ω</td><td>주 부하 · 발열 큼</td></tr>
+        <tr><td>🟫 Resistor</td><td>3.0Ω (가변 1~6)</td><td>전류 제한</td></tr>
+        <tr><td>━ Wire</td><td>0.05Ω/칸</td><td>길수록 손실↑</td></tr>
+      </table>
+      <p style="margin:8px 0 6px"><strong>④ 저항의 역할</strong><br>
+      저항을 직렬로 넣으면 총저항이 커져 전류가 줄어듭니다 → 출력도 발열도 함께 내려갑니다. <strong>고전압에서 부품이 과열될 때 넣는 안전장치</strong>입니다. 단, 저항 자신도 전류를 받아 뜨거워지니(I²R) 여러 개로 나누거나 방열판을 다세요. <em>Variable Resistor</em>는 클릭으로 저항(Low 1Ω↔High 6Ω)을 바꿔 출력·발열을 조절합니다.</p>
+      <p style="margin:8px 0 6px"><strong>⑤ 배터리 업그레이드의 양날</strong><br>
+      배터리 티어를 올리면 전압이 커져 전류·출력이 늘지만 발열이 급증합니다. → <strong>방열판</strong>으로 식히거나 <strong>저항</strong>으로 전류를 낮춰 균형을 잡으세요.</p>
+      <p style="margin:8px 0 6px"><strong>⑥ 회로 읽는 법</strong><br>
+      · <strong>LED 색</strong>: 백색=정상, 파랑=전류 부족, 빨강 점멸=병목, 호박=과전류<br>
+      · <strong>전선 흐름</strong>: 빠를수록 전류 많음<br>
+      · <strong>부품 툴팁</strong>: EMF·전류(I)·저항(R)·전압강하·전력(W)을 실시간 표시</p>
+      <p style="margin:8px 0 0;color:var(--muted)"><strong>한 줄 요약:</strong> 전압을 올리면 빨라지지만 뜨거워진다. 저항과 방열판으로 열을 다스려라.</p>
+    </div>
+  </section>
+</div>
+
 <script>
 "use strict";
 /* =========================================================================
    Circuit Forge — Prototype "Big Frame"
-   단일 HTML / 바닐라 JS. GDD v0.3의 핵심 루프를 검증하는 골격 구현.
+   단일 HTML / 바닐라 JS. GDD v0.5의 핵심 루프를 검증하는 골격 구현.
    구현 범위: 그리드/배선/부품, 회로 유효성, 효율·전압·병렬·Heat 계산,
              연산력→자금 루프, 상점/업그레이드, 세이브.
    ========================================================================= */
 
 // ---- 부품 카탈로그 (GDD 5.2) -------------------------------------------
 const COMPONENTS = {
-  battery:  { name:'Battery', icon:'🔋', color:'#2d6cdf', cost:50, vl:1, vr:0, base:0, heat:2, kind:'power',
+  battery:  { name:'Battery', icon:'🔋', color:'#2d6cdf', cost:50, vl:1, amps:3, vr:0, base:0, heat:0.4, kind:'power',
     terminals:{ input:'W', output:'E' },
     category:'전원', role:'회로에 전력을 공급합니다. 유효 회로에 최소 1개 필요합니다.',
-    effect:'Voltage Level(VL) +1', requirement:'유효 회로 필수', tip:'여러 개를 연결하면 VL이 합산되지만 Heat도 증가합니다.' },
-  clock:    { name:'Clock', icon:'⏱', color:'#4fd1ff', cost:25, vl:0, vr:1, base:0, heat:0.5, kind:'clock',
+    effect:'기전력 1V · 전류 용량 3A', requirement:'유효 회로 필수', tip:'전류 I = 기전력 ÷ 총저항. 직렬로 더 연결하면 전압이 합산돼 전류가 늘지만, 부품 발열(I²R)도 함께 커집니다.' },
+  clock:    { name:'Clock', icon:'⏱', color:'#4fd1ff', cost:25, vl:0, vr:1, base:0, heat:0.4, kind:'clock',
     terminals:{ input:'W', output:'E' },
     category:'클럭', role:'Logic Cell이 계산할 수 있도록 연산 주기를 제공합니다.',
     effect:'Clock 배율 ×1.0', requirement:'유효 회로 필수', tip:'2개부터 출력과 Heat가 함께 증가하는 과구동 상태가 됩니다.' },
   logic:    { name:'Logic Cell', icon:'▣', color:'#7cdb86', cost:20, vl:0, vr:1, base:2, heat:1.5, kind:'compute',
     terminals:{ input:'W', output:'E' },
     category:'연산', role:'Clock 신호를 받아 실제 FLOPS를 생산합니다.',
-    effect:'Base Compute 2 FLOPS', requirement:'Battery와 Clock 필요', tip:'같은 회로에 여러 개를 넣으면 병렬 연산 보너스를 받습니다.' },
-  resistor: { name:'Resistor', icon:'🟫', color:'#8a5a2b', cost:10, vl:0, vr:1, base:0, heat:1, kind:'passive',
+    effect:'2 FLOPS @ 정격전류 · 2.0Ω 부하', requirement:'Battery와 Clock 필요', tip:'출력은 흐르는 전류에 비례합니다. 저항이 커서 가장 뜨거우니(I²R), 전압을 올리면 방열판이나 직렬 저항으로 식히세요.' },
+  resistor: { name:'Resistor', icon:'🟫', color:'#8a5a2b', cost:10, vl:0, vr:1, base:0, heat:0.5, kind:'passive',
     terminals:{ input:'W', output:'E' },
-    category:'안정화', role:'회로를 안정화해 출력 손실을 줄입니다.',
-    effect:'Stability Modifier 보정', requirement:'선택 사항', tip:'1개면 불안정 패널티를 제거하고, 2개면 소폭 보너스를 줍니다.' },
-  led:      { name:'LED', icon:'💡', color:'#f5f5f5', cost:100, vl:0, vr:1, base:0, heat:0.5, kind:'feedback', glow:true,
+    category:'전류 제어', role:'직렬 저항으로 전류를 제한해 출력·발열을 낮추고 과열을 막습니다.',
+    effect:'저항 3.0Ω (전류 제한)', requirement:'고전압·고열 빌드 권장', tip:'옴의 법칙: 저항을 키우면 전류가 줄어 출력과 발열이 함께 내려갑니다. 배터리를 업그레이드해 부품이 과열될 때 직렬로 추가하세요. 저항 자신도 뜨거워지니 여러 개로 나누거나 방열판을 다세요.' },
+  led:      { name:'LED', icon:'💡', color:'#f5f5f5', cost:100, vl:0, vr:1, base:0, heat:0.4, kind:'feedback', glow:true,
     terminals:{ input:'W', output:'E' },
     unlock:'firstCircuit',
-    category:'피드백', role:'작동 상태와 전류 흐름을 시각적으로 확인합니다.',
-    effect:'점등 및 디버그 표시', requirement:'선택 사항', tip:'처음으로 유효 회로에서 점등하면 Flux +2를 획득합니다.' },
+    category:'피드백', role:'분기 전류 상태를 색으로 보여주는 진단등입니다.',
+    effect:'전류 진단등 · 점등', requirement:'선택 사항', tip:'백색=정상, 파랑=전류 부족, 빨강 점멸=전류 병목, 호박=과전류. 처음 점등 시 Flux +2.' },
   junction: { name:'Junction', icon:'✚', color:'#d6a934', cost:15, vl:0, vr:0, base:0, heat:0, kind:'routing',
     terminals:{ N:'junction', E:'junction', S:'junction', W:'junction' },
     category:'배선', role:'세 갈래 이상의 전선을 하나의 전기적 접점으로 연결합니다.',
@@ -317,26 +370,66 @@ const COMPONENTS = {
     unlock:'compute10',
     category:'제어', role:'회로 생산을 수동으로 켜거나 끕니다.',
     effect:'회로 ON/OFF', requirement:'선택 사항', tip:'보드에서 Switch를 클릭하면 연결된 회로 전체가 전환됩니다.' },
-  heatsink: { name:'Heatsink', icon:'🌡', color:'#9aa7b0', cost:300, vl:0, vr:0, base:0, heat:-5, kind:'thermal',
-    footprint:[[0,0],[0,1]],
-    terminalCells:[
-      { offset:[0,0], side:'N', type:'input' },
-      { offset:[0,1], side:'S', type:'output' },
-    ],
+  heatsink: { name:'Heatsink', icon:'▥', color:'#b8c2c8', cost:300, vl:0, vr:0, base:0, heat:0, kind:'thermal', attachment:true,
     unlock:'heat70',
-    category:'냉각', role:'보드의 Heat를 낮춰 출력 저하를 방지합니다.',
-    effect:'Heat -5°C/s', requirement:'선택 사항', tip:'활성 회로에 연결해야 냉각 효과가 적용됩니다.' },
+    category:'냉각 장착물', role:'부품 위에 장착해 해당 부품의 방열과 열용량을 높입니다.',
+    effect:'장착 부품 개별 냉각', requirement:'Junction을 제외한 배치 부품', tip:'Heatsink를 선택한 뒤 냉각할 부품을 클릭하세요. 같은 부품을 다시 클릭하면 회수합니다.' },
 };
+
+// ---- 부품 티어 업그레이드 (GDD 5.2) -----------------------------------
+// 전역 업그레이드: 한 번 구매하면 해당 종류의 모든 부품이 새 티어 스탯을 사용한다.
+// heat 값은 자연 방열 평형 온도를 고려한다. 비연산 부품(전원/저항 등)은
+// 평형점이 안전권(~60°C 이하)에 들도록 낮게 두고, 연산 부품(Logic)만 적극 냉각이 필요하다.
+// unit = 보드에 1개 배치할 때의 구매 단가(티어가 오르면 함께 상승). cost = 티어 업그레이드 비용.
+const TIERS = {
+  battery: [
+    { label:'Battery',      vl:1, amps:3,  heat:0.4, unit:50,  cost:0,    unlock:0 },
+    { label:'Lithium Cell', vl:2, amps:6,  heat:0.5, unit:200, cost:800,  unlock:500 },
+    { label:'Li-Poly Cell', vl:4, amps:12, heat:0.6, unit:800, cost:8000, unlock:5000 },
+  ],
+  logic: [
+    { label:'Logic Cell',          base:2, heat:1.5, unit:20,  cost:0,    unlock:0 },
+    { label:'Buffered Logic Cell', base:3, heat:2,   unit:80,  cost:250,  unlock:0 },
+    { label:'Micro ALU',           base:6, heat:4,   unit:320, cost:2500, unlock:5000 },
+  ],
+  resistor: [
+    { label:'Resistor',           heat:0.5, unit:10,  cost:0,    unlock:0, precision:false, variable:false },
+    { label:'Precision Resistor', heat:0.5, unit:40,  cost:200,  unlock:0, precision:true,  variable:false },
+    { label:'Variable Resistor',  heat:0.6, unit:160, cost:2000, unlock:0, precision:true,  variable:true  },
+  ],
+};
+// Variable Resistor 모드 = 저항값(Ω). 옴의 법칙에 따라 출력/발열이 자동으로 따라온다.
+const VR_MODES = {
+  low:  { label:'Low',  ohm:1.0, hint:'저저항 → 전류↑ · 출력↑ · 발열↑' },
+  mid:  { label:'Mid',  ohm:3.0, hint:'표준 저항' },
+  high: { label:'High', ohm:6.0, hint:'고저항 → 전류↓ · 출력↓ · 발열↓' },
+};
+function tierLevel(name){ return Math.min((G.tiers?.[name]||0), (TIERS[name]?.length||1)-1); }
+function effComp(name){
+  const ladder=TIERS[name];
+  if(!ladder) return COMPONENTS[name];
+  return Object.assign({}, COMPONENTS[name], ladder[tierLevel(name)]);
+}
+function effStat(name,field){ return effComp(name)[field]; }
+function unitCost(name){ return TIERS[name] ? effComp(name).unit : COMPONENTS[name].cost; }
+function resistorModeOf(cell){ return cell.resistorMode||'mid'; }
+function isVariableResistor(){ return Boolean(effComp('resistor').variable); }
+
 const SHOP_ORDER = ['battery','clock','logic','resistor','led','junction','switch','heatsink'];
 
 // ---- 셀 타입 -----------------------------------------------------------
-// cell = { wire, wireDirs, comp, on, rotation, anchorX, anchorY }
+// cell = { wire, wireDirs, comp, on, rotation, anchorX, anchorY, burned, temperature, heatsink }
 function newBoard(size){
   const cells = [];
   for(let i=0;i<size*size;i++) cells.push({
     wire:false, wireDirs:0, comp:null, on:true, rotation:0, anchorX:null, anchorY:null,
+    burned:false, temperature:22, heatsink:false,
   });
-  return { size, cells, heat:0, maxHeat:100 };
+  return {
+    size, cells,
+    ambientTemperature:22,
+    thermalVersion:3,
+  };
 }
 
 // ---- 게임 상태 ---------------------------------------------------------
@@ -347,7 +440,11 @@ const G = {
   totalCompute: 0,
   computeRate: 0,
   heatRate: 0,
+  heatGeneration: 0,
+  passiveCooling: 0,
+  activeCooling: 0,
   conductorCap: 0.95,            // 구리선 기본 (GDD 5.6)
+  tiers: { battery:0, logic:0, resistor:0 },  // 부품 티어 업그레이드 레벨 (GDD 5.2)
   board: newBoard(8),
   gridLevel: 0,                  // 0:8x8, 1:16x16 (GDD 4.1)
   selected: null,                // 선택된 부품 이름
@@ -360,6 +457,8 @@ const G = {
   tutorialStep: 0,
   unlocked: {},
   peakHeat: 0,
+  heatState: 'normal',
+  burnoutCount: 0,
 };
 
 const GRID_LEVELS = [
@@ -377,6 +476,9 @@ function fitCanvas(){
   CELL = size <= 8 ? 44 : size <= 16 ? 30 : 22;
   canvas.width = size * CELL;
   canvas.height = size * CELL;
+  canvas.style.width=canvas.width+'px';
+  canvas.style.height=canvas.height+'px';
+  document.getElementById('boardWrap').style.width=canvas.width+'px';
 }
 
 function idx(x,y){ return y*G.board.size + x; }
@@ -390,6 +492,9 @@ const DIRECTIONS=[
 const SIDE_ORDER=['N','E','S','W'];
 function rotatedSide(side,rotation=0){
   return SIDE_ORDER[(SIDE_ORDER.indexOf(side)+(rotation||0))%4];
+}
+function rotatedFootprintTerminalSide(side,rotation=0){
+  return SIDE_ORDER[(SIDE_ORDER.indexOf(side)-(rotation||0)+4)%4];
 }
 function rotateOffset([dx,dy],rotation=0){
   let x=dx, y=dy;
@@ -407,6 +512,22 @@ function componentAnchorAt(x,y){
     cell.anchorX==null ? x : cell.anchorX,
     cell.anchorY==null ? y : cell.anchorY,
   ];
+}
+function componentStateAt(x,y){
+  const anchor=componentAnchorAt(x,y);
+  if(!anchor) return null;
+  const cell=G.board.cells[idx(anchor[0],anchor[1])];
+  return {
+    anchor,
+    cell,
+    burned:Boolean(cell.burned),
+    temperature:cell.temperature??G.board.ambientTemperature,
+    heatsink:Boolean(cell.heatsink),
+    operational:!cell.burned,
+  };
+}
+function isComponentOperational(x,y){
+  return Boolean(componentStateAt(x,y)?.operational);
 }
 function componentCellsAt(x,y,name=null,rotation=null){
   const anchor=componentAnchorAt(x,y) || [x,y];
@@ -446,7 +567,7 @@ function cellTerminalMap(x,y){
   for(const terminal of def.terminalCells){
     const [dx,dy]=rotateOffset(terminal.offset,anchorCell.rotation);
     if(anchor[0]+dx===x && anchor[1]+dy===y){
-      map[rotatedSide(terminal.side,anchorCell.rotation)]=terminal.type;
+      map[rotatedFootprintTerminalSide(terminal.side,anchorCell.rotation)]=terminal.type;
     }
   }
   return map;
@@ -623,6 +744,209 @@ function closedPathRegions(nodes){
   return regions;
 }
 
+function electricalLoadFor(name){
+  return {
+    battery:0, clock:0.25, logic:1, resistor:0.1, led:0.25,
+    junction:0, switch:0.05,
+  }[name] ?? 0.5;
+}
+function voltageModifierFor(voltage,requirement){
+  if(voltage===requirement) return 1;
+  if(voltage>requirement) return Math.min(1.5,1+(voltage-requirement)*0.1);
+  return 0.5;
+}
+// ===== 옴의 법칙(Level 2) 전기 모델 =====
+// 전류 I = 기전력(EMF) / 총 저항 R. 부품마다 실제 저항(Ω)을 가진다.
+// 발열 = 줄열 I²R, Logic 출력 = 정격 전류 대비 비율. 저항을 키우면 전류↓(출력↓·발열↓·과전류 보호).
+const WIRE_OHM=0.05;                       // 활성 배선 1칸당 저항(Ω)
+const I_REF=0.30;                          // Logic Cell 정격 전류(A). 이 전류에서 Base FLOPS 100%
+const I_MIN=0.10;                          // 이보다 낮으면 부품 미작동
+const HEAT_SCALE=3;                         // 줄열 I²R → Heat/s 환산 계수 (T0 Logic ≈58°C 안전, 상위 티어는 냉각/저항 필요)
+const BATTERY_INTERNAL=[0.5,0.25,0.12];    // 배터리 티어별 내부 저항(낮을수록 강한 전원)
+function batteryInternalOhm(){ return BATTERY_INTERNAL[tierLevel('battery')] ?? BATTERY_INTERNAL[BATTERY_INTERNAL.length-1]; }
+function componentOhm(name,cell){
+  switch(name){
+    case 'battery': return batteryInternalOhm();
+    case 'logic':   return 2.0;   // 주 부하: 가장 큰 발열원
+    case 'clock':   return 0.4;   // 신호원: 저전력
+    case 'led':     return 2.0;
+    case 'switch':  return 0.05;
+    case 'junction':return 0.001;
+    case 'resistor':
+      if(isVariableResistor() && cell) return VR_MODES[resistorModeOf(cell)].ohm;
+      return 3.0;
+    default: return 0.5;
+  }
+}
+function branchPathResistance(branch){
+  let r=0;
+  for(const [x,y,name] of branch.components) r+=componentOhm(name,G.board.cells[idx(x,y)]);
+  let wires=0;
+  for(const key of branch.nodeKeys){ const [x,y]=key.split(',').map(Number); if(G.board.cells[idx(x,y)]?.wire) wires++; }
+  return Math.max(0.01, r + wires*WIRE_OHM);
+}
+// 줄열: 작동 중인 분기에서 부품이 만드는 Heat/s = I²R × 계수
+function jouleHeatOf(cell,branch){
+  if(!branch) return 0;
+  const i=branch.current||0;
+  return i*i*componentOhm(cell.comp,cell)*HEAT_SCALE;
+}
+function closedAdjacency(closedNodeKeys){
+  const adjacency=new Map();
+  for(const key of closedNodeKeys){
+    const [x,y]=key.split(',').map(Number);
+    const neighbors=[];
+    for(const {dx,dy} of DIRECTIONS){
+      const next=`${x+dx},${y+dy}`;
+      if(closedNodeKeys.has(next) && cellsConnected(x,y,x+dx,y+dy)) neighbors.push(next);
+    }
+    adjacency.set(key,neighbors);
+  }
+  return adjacency;
+}
+function branchComponents(nodeKeys){
+  const components=[], seen=new Set();
+  for(const key of nodeKeys){
+    const [x,y]=key.split(',').map(Number);
+    const anchor=componentAnchorAt(x,y);
+    if(!anchor) continue;
+    const anchorKey=`${anchor[0]},${anchor[1]}`;
+    if(seen.has(anchorKey)) continue;
+    seen.add(anchorKey);
+    const name=G.board.cells[idx(anchor[0],anchor[1])].comp;
+    if(name && name!=='junction') components.push([anchor[0],anchor[1],name]);
+  }
+  return components;
+}
+function extractElectricalBranches(closedNodeKeys){
+  if(!closedNodeKeys.size) return { topology:'open', branches:[], junctionKeys:[] };
+  const adjacency=closedAdjacency(closedNodeKeys);
+  const junctionKeys=[...adjacency.keys()].filter(key=>{
+    const [x,y]=key.split(',').map(Number);
+    return G.board.cells[idx(x,y)].comp==='junction' && adjacency.get(key).length>=3;
+  });
+  if(junctionKeys.length<2){
+    const nodeKeys=new Set(closedNodeKeys);
+    return {
+      topology:'series',
+      junctionKeys,
+      branches:[{ id:0, start:null, end:null, nodeKeys, components:branchComponents(nodeKeys) }],
+    };
+  }
+
+  const junctionSet=new Set(junctionKeys);
+  const edgeKey=(a,b)=>a<b ? `${a}|${b}` : `${b}|${a}`;
+  const visitedEdges=new Set();
+  const branches=[];
+  for(const start of junctionKeys){
+    for(const neighbor of adjacency.get(start)){
+      if(visitedEdges.has(edgeKey(start,neighbor))) continue;
+      const path=[start];
+      let previous=start, current=neighbor;
+      visitedEdges.add(edgeKey(previous,current));
+      while(true){
+        path.push(current);
+        if(junctionSet.has(current)) break;
+        const next=adjacency.get(current).find(key=>key!==previous);
+        if(!next) break;
+        previous=current;
+        current=next;
+        visitedEdges.add(edgeKey(previous,current));
+      }
+      if(junctionSet.has(current) && current!==start){
+        const nodeKeys=new Set(path);
+        branches.push({
+          id:branches.length,
+          start,
+          end:current,
+          nodeKeys,
+          components:branchComponents(nodeKeys),
+        });
+      }
+    }
+  }
+  const endpointGroups=new Map();
+  for(const branch of branches){
+    const groupKey=[branch.start,branch.end].sort().join('|');
+    branch.groupKey=groupKey;
+    if(!endpointGroups.has(groupKey)) endpointGroups.set(groupKey,[]);
+    endpointGroups.get(groupKey).push(branch);
+  }
+  const hasParallel=[...endpointGroups.values()].some(group=>group.length>=2);
+  const topology=hasParallel && endpointGroups.size===1 && junctionKeys.length===2 ? 'parallel'
+    : hasParallel ? 'mixed' : 'series';
+  return { topology, branches, junctionKeys, endpointGroups };
+}
+function analyzeBranchElectrical(closedNodeKeys,activeComps,vl){
+  const topology=extractElectricalBranches(closedNodeKeys);
+  const activeKeys=new Set(activeComps.map(([x,y])=>`${x},${y}`));
+  const currentCapacity=activeComps.reduce((sum,[, ,name])=>
+    sum+(COMPONENTS[name]?.kind==='power' ? effStat(name,'amps')||0 : 0),0);
+  const emf=vl;  // 직렬 배터리 VL 합 = 기전력(EMF, V)
+
+  // 1차: 각 분기의 구성과 저항(Ω)
+  for(const branch of topology.branches){
+    branch.allComponents=branch.components;
+    branch.shortCircuit=branch.allComponents.some(([x,y])=>componentStateAt(x,y)?.burned);
+    branch.disabled=branch.allComponents.some(([x,y])=>!activeKeys.has(`${x},${y}`));
+    branch.components=branch.allComponents.filter(([x,y])=>activeKeys.has(`${x},${y}`));
+    branch.requirement=Math.max(1,...branch.components.map(([, ,name])=>COMPONENTS[name]?.vr||0));
+    branch.hasResistor=branch.components.some(([, ,name])=>name==='resistor');
+    branch.resistance=branchPathResistance(branch);
+    if(branch.shortCircuit) branch.resistance=Math.min(branch.resistance,0.05); // 고장=내부 단락(저저항)
+    branch.voltage=emf;
+  }
+
+  // 위상 결합으로 총 저항 → 루프 전류 (옴의 법칙). 같은 Junction 쌍의 분기는 병렬.
+  const groups=new Map();
+  for(const branch of topology.branches){
+    const key=branch.groupKey || ('solo'+branch.id);
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(branch);
+  }
+  let loopResistance=0;
+  for(const grp of groups.values()){
+    if(grp.length===1) loopResistance+=grp[0].resistance;
+    else { const g=grp.reduce((s,b)=>s+1/Math.max(0.01,b.resistance),0); loopResistance+=1/Math.max(1e-4,g); }
+  }
+  loopResistance=Math.max(0.01,loopResistance);
+  let loopCurrent=emf>0 ? emf/loopResistance : 0;
+  // 배터리 전류 용량 한계 → 전압 새그(current-limited)
+  let sag=1;
+  if(currentCapacity>0 && loopCurrent>currentCapacity){ sag=currentCapacity/loopCurrent; loopCurrent=currentCapacity; }
+
+  // 2차: 분기 전류·전압강하·출력
+  for(const branch of topology.branches){
+    const grp=groups.get(branch.groupKey || ('solo'+branch.id));
+    if(!grp || grp.length===1) branch.current=loopCurrent;
+    else {
+      const totalG=grp.reduce((s,b)=>s+1/Math.max(0.01,b.resistance),0);
+      branch.current=loopCurrent*((1/Math.max(0.01,branch.resistance))/totalG);
+    }
+    branch.voltageDrop=branch.current*branch.resistance;       // 이 분기 전체 전압강하(V)
+    branch.currentDemand=branch.current;                       // 표시 호환
+    branch.currentModifier=sag;
+    branch.currentLimited=sag<0.999;
+    branch.undervoltage=branch.current < I_REF*0.8;            // 전류 부족(언더드라이브)
+    branch.overvoltage=branch.current > I_REF*1.6;             // 과전류(오버드라이브 → 고열)
+    branch.operating=!branch.disabled && !branch.shortCircuit && branch.current>=I_MIN;
+    const driveRatio=branch.current/I_REF;                     // 정격 전류 대비
+    branch.voltageModifier=driveRatio;                         // 표시/하위호환
+    branch.computeBase=branch.components.reduce((sum,[, ,name])=>
+      sum+(COMPONENTS[name]?.kind==='compute' ? effStat(name,'base') : 0),0);
+    branch.thermalComputeBase=branch.components.reduce((sum,[x,y,name])=>{
+      if(COMPONENTS[name]?.kind!=='compute') return sum;
+      return sum+effStat(name,'base')*heatModifier(componentStateAt(x,y)?.temperature||G.board.ambientTemperature);
+    },0);
+    branch.outputBase=branch.operating ? branch.thermalComputeBase*driveRatio : 0;
+  }
+  const demand=topology.topology==='series'
+    ? loopCurrent
+    : topology.branches.reduce((sum,branch)=>sum+branch.current,0);
+  return { ...topology, currentCapacity, currentDemand:demand, currentModifier:sag,
+    loopResistance, loopCurrent, emf };
+}
+
 function buildCircuit(nodes, edges){
   const cells = G.board.cells;
   const nodeKey=(x,y)=>`${x},${y}`;
@@ -652,7 +976,9 @@ function buildCircuit(nodes, edges){
   const closedNodeKeys=closedRegions[0] || new Set();
   const closedNodes=nodes.filter(([x,y])=>closedNodeKeys.has(nodeKey(x,y)));
   const comps = [];        // 연결요소의 모든 부품
-  const activeComps = [];  // 실제 닫힌 경로 위의 부품
+  const closedComps = [];  // 닫힌 경로 위의 모든 부품
+  const activeComps = [];  // 닫힌 경로 위에서 정상 작동 중인 부품
+  const disabledComps = [];
   let wires = 0;
   let powerCount = 0, clockCount = 0, computeCount = 0;
   let vlSum = 0;
@@ -679,16 +1005,21 @@ function buildCircuit(nodes, edges){
     const onClosedPath=occupiedCells.every(([cx,cy])=>closedNodeKeys.has(nodeKey(cx,cy)));
     if(onClosedPath){
       const def = COMPONENTS[name];
-      activeComps.push([anchor[0],anchor[1],name]);
-      compCounts[name] = (compCounts[name]||0)+1;
-      if(def.kind==='power'){ powerCount++; vlSum += def.vl; }
-      if(def.kind==='clock'){ clockCount++; }
-      if(def.kind==='compute'){ computeCount++; }
-      if(name==='switch' && !anchorCell.on){ allSwitchesOn=false; }
+      closedComps.push([anchor[0],anchor[1],name]);
       for(const [cx,cy] of occupiedCells){
         minX=Math.min(minX,cx); minY=Math.min(minY,cy);
         maxX=Math.max(maxX,cx); maxY=Math.max(maxY,cy);
       }
+      if(!isComponentOperational(anchor[0],anchor[1])){
+        disabledComps.push([anchor[0],anchor[1],name]);
+        continue;
+      }
+      activeComps.push([anchor[0],anchor[1],name]);
+      compCounts[name] = (compCounts[name]||0)+1;
+      if(def.kind==='power'){ powerCount++; vlSum += effStat(name,'vl'); }
+      if(def.kind==='clock'){ clockCount++; }
+      if(def.kind==='compute'){ computeCount++; }
+      if(name==='switch' && !anchorCell.on){ allSwitchesOn=false; }
     }
   }
 
@@ -703,57 +1034,76 @@ function buildCircuit(nodes, edges){
   else if((allCompCounts.clock||0) === 0){ valid=false; reason='Clock 없음'; }
   else if((allCompCounts.logic||0) === 0){ valid=false; reason='연산 코어 없음'; }
   else if(!hasCycle){ valid=false; reason='닫힌 루프 아님'; }
-  else if(powerCount === 0){ valid=false; reason='Battery가 닫힌 경로 밖'; }
-  else if(clockCount === 0){ valid=false; reason='Clock이 닫힌 경로 밖'; }
-  else if(computeCount === 0){ valid=false; reason='Logic Cell이 닫힌 경로 밖'; }
+  else if(powerCount === 0){
+    valid=false;
+    reason=(closedComps.some(([, ,name])=>name==='battery') ? 'Battery 신호 없음' : 'Battery가 닫힌 경로 밖');
+  }
+  else if(clockCount === 0){
+    valid=false;
+    reason=(closedComps.some(([, ,name])=>name==='clock') ? 'Clock 신호 없음' : 'Clock이 닫힌 경로 밖');
+  }
+  else if(computeCount === 0){
+    valid=false;
+    reason=(closedComps.some(([, ,name])=>name==='logic') ? '연산 신호 없음' : 'Logic Cell이 닫힌 경로 밖');
+  }
 
   // ---- 효율 계산 (GDD 4.5) ----
   let wireEff = 0, voltBonus = 1, stability = 1, parallelBonus = 1, clockModifier = 1, base = 0;
+  let poweredBase=0;
   let vl = vlSum; // 직렬 가정: 배터리 VL 합산
+  let electrical={
+    topology:'open', branches:[], currentCapacity:0, currentDemand:0, currentModifier:1,
+  };
   if(valid){
-    // 이상적 폐루프 길이 ≈ 부품 바운딩박스 둘레
+    // 점유 셀을 한 겹 감싸는 최소 폐루프 둘레. +4는 셀 자체 폭/높이를 반영한다.
     const bbW = maxX-minX, bbH = maxY-minY;
-    const idealWire = Math.max(4, 2*(bbW+bbH)); // 최소 사각 루프
+    const idealWire = Math.max(4, 2*(bbW+bbH)+4);
     const rawRatio = wires>0 ? Math.min(1, idealWire / wires) : 1;
     wireEff = Math.min(G.conductorCap, rawRatio);
 
-    // 전압 매칭 보너스 — Compute 부품 평균 VR 대비
-    let vrSum=0, vrN=0;
-    for(const [,,name] of activeComps){ const d=COMPONENTS[name]; if(d.kind==='compute'){ vrSum+=d.vr; vrN++; } }
-    const vr = vrN? vrSum/vrN : 1;
-    if(vl===vr) voltBonus=1;
-    else if(vl>vr) voltBonus=Math.min(1.5, 1+(vl-vr)*0.1);
-    else voltBonus=0.5;
+    electrical=analyzeBranchElectrical(closedNodeKeys,activeComps,vl);
 
     // Clock은 직접 FLOPS를 만들지 않고 회로 틱을 제공한다.
     if(clockCount === 1) clockModifier = 1;
     else if(clockCount === 2) clockModifier = 1.15;
     else clockModifier = 1.25;
 
-    // Resistor는 안정화 담당. 3개 이상은 추가 보너스 없음.
+    // 옴의 법칙 모델: Resistor의 주 역할은 전류 제한(저항)으로 analyzeBranchElectrical에서 처리된다.
+    // Precision/Variable 저항이 회로에 있으면 신호 정리로 +5% 출력 보너스만 추가로 준다.
     const resistorCount = compCounts.resistor || 0;
-    if(resistorCount === 0) stability = 0.85;
-    else if(resistorCount === 1) stability = 1;
-    else stability = 1.05;
+    stability = (resistorCount>0 && effComp('resistor').precision) ? 1.05 : 1.0;
 
-    // 병렬 보너스: 같은 종류 부품 n개 → ×(1+0.05*(n-1))
-    for(const k in compCounts){
-      const n=compCounts[k];
-      if(n>1 && COMPONENTS[k].kind==='compute') parallelBonus *= (1+0.05*(n-1));
+    // 서로 다른 정상 병렬 가지에 놓인 같은 Compute 부품만 병렬 보너스를 받는다.
+    const parallelTypes=new Map();
+    for(const branch of electrical.branches){
+      if(!branch.operating || !branch.groupKey) continue;
+      for(const [, ,name] of branch.components){
+        if(COMPONENTS[name]?.kind!=='compute') continue;
+        const key=`${branch.groupKey}:${name}`;
+        if(!parallelTypes.has(key)) parallelTypes.set(key,new Set());
+        parallelTypes.get(key).add(branch.id);
+      }
+    }
+    for(const branchIds of parallelTypes.values()){
+      const n=branchIds.size;
+      if(n>1) parallelBonus*=1+0.05*(n-1);
     }
 
     // Compute Component만 Base Compute에 기여한다.
     for(const [,,name] of activeComps){
       const d = COMPONENTS[name];
-      if(d.kind==='compute') base += d.base;
+      if(d.kind==='compute') base += effStat(name,'base');
     }
+    poweredBase=electrical.branches.reduce((sum,branch)=>sum+branch.outputBase,0);
+    voltBonus=base>0 ? poweredBase/(base*Math.max(0.001,electrical.currentModifier)) : 1;
   }
 
   return {
-    nodes, closedNodes, closedNodeKeys, closedRegions, comps, activeComps, wires, valid, reason, hasCycle, batteryShort,
-    wireEff, voltBonus, stability, parallelBonus, clockModifier, base, vl,
+    nodes, closedNodes, closedNodeKeys, closedRegions, comps, closedComps, activeComps, disabledComps,
+    wires, valid, reason, hasCycle, batteryShort,
+    wireEff, voltBonus, stability, parallelBonus, clockModifier, base, poweredBase, vl, electrical,
     allSwitchesOn, compCounts, allCompCounts, bbox:[minX,minY,maxX,maxY],
-    offPathCompCount: comps.length-activeComps.length,
+    offPathCompCount: comps.length-closedComps.length,
     rate: 0, // 아래서 채움
   };
 }
@@ -765,10 +1115,117 @@ function heatModifier(heat){
   if(heat <= 99) return 0.85 - (heat-85)*0.02;
   return 0.57;
 }
+function heatStateAt(heat){
+  if(heat >= 99) return { key:'critical', label:'임계', message:'Heat 임계 상태 · 출력이 크게 제한됩니다' };
+  if(heat >= 85) return { key:'danger', label:'위험', message:'Heat 85°C · 냉각을 즉시 늘리세요' };
+  if(heat >= 70) return { key:'warning', label:'주의', message:'Heat 70°C · 출력 저하가 시작됩니다' };
+  return { key:'normal', label:'안정', message:'' };
+}
+// ---- Switch 버스트 타이밍 (GDD 5.2) ----
+const BURST_PERIOD=3000, BURST_WINDOW=700, BURST_DURATION=5000, BURST_MULT=1.8;
+let nowMs=performance.now();
+function burstWindowOpen(t=nowMs){ return (t % BURST_PERIOD) < BURST_WINDOW; }
+function switchBurstActive(cell){ return cell?.comp==='switch' && (cell.burstUntil||0) > nowMs; }
+function circuitBurstActive(c){
+  return Boolean(c.activeComps?.some(([x,y,name])=>
+    name==='switch' && (G.board.cells[idx(x,y)].burstUntil||0) > nowMs));
+}
 function calculateCircuitRate(c){
   if(!c.valid || !c.allSwitchesOn) return 0;
-  return c.base * c.clockModifier * c.wireEff * c.voltBonus
-    * c.stability * c.parallelBonus * heatModifier(G.board.heat);
+  // 옴의 법칙 모델: 전압/저항/전류 효과는 poweredBase(분기 출력)에 이미 반영됨.
+  let rate = c.poweredBase * c.clockModifier * c.wireEff * c.stability * c.parallelBonus;
+  if(circuitBurstActive(c)) rate *= BURST_MULT;
+  return rate;
+}
+function electricalBranchAt(circuit,x,y){
+  if(!circuit?.electrical?.branches) return null;
+  const anchor=componentAnchorAt(x,y);
+  const keys=anchor
+    ? new Set(componentCellsAt(anchor[0],anchor[1]).map(([cx,cy])=>`${cx},${cy}`))
+    : new Set([`${x},${y}`]);
+  return circuit.electrical.branches.find(branch=>
+    [...keys].some(key=>branch.nodeKeys.has(key))) || null;
+}
+function branchHeatMultiplier(branch,name){
+  if(!branch || COMPONENTS[name]?.heat<=0) return 1;
+  const hasResistor=branch.components?.some(([, ,component])=>component==='resistor');
+  let multiplier=1;
+  if(branch.overvoltage){
+    const overvoltHeat=Math.min(0.75,(branch.voltage-branch.requirement)*0.15);
+    // 분기에 저항이 있으면 과전압 발열의 80%를 흡수한다.
+    multiplier+=hasResistor ? overvoltHeat*0.2 : overvoltHeat;
+  }
+  if(branch.currentLimited) multiplier+=0.15;
+  return Math.max(1,multiplier);
+}
+function activeThermalContext(){
+  const map=new Map();
+  for(const circuit of circuits){
+    if(!circuit.valid || !circuit.allSwitchesOn) continue;
+    for(const [x,y,name] of circuit.activeComps){
+      const branch=electricalBranchAt(circuit,x,y);
+      if(branch?.operating) map.set(`${x},${y}`,{ circuit, branch, name });
+    }
+  }
+  return map;
+}
+function updateComponentTemperatures(dt){
+  const ambient=G.board.ambientTemperature;
+  const active=activeThermalContext();
+  let generationTotal=0, passiveTotal=0, sinkCoolingTotal=0;
+  let hottest=ambient, temperatureSum=0, componentCount=0, hottestRate=0, failures=0;
+
+  for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+    if(!isComponentAnchor(x,y)) continue;
+    const cell=G.board.cells[idx(x,y)];
+    const d=COMPONENTS[cell.comp];
+    if(!d || d.attachment) continue;
+    const context=active.get(`${x},${y}`);
+    let generation=0;
+    if(context && !cell.burned){
+      // 줄열(Joule heating): 부품 발열 = I²R × 계수. 저항이 큰 Logic이 가장 뜨겁다.
+      generation=jouleHeatOf(cell,context.branch);
+      if((context.circuit.compCounts?.clock||0)>=2){
+        generation*=context.circuit.compCounts.clock===2 ? 1.2 : 1.5;
+      }
+    }
+    const temperature=Math.max(ambient,cell.temperature??ambient);
+    const delta=temperature-ambient;
+    const passiveCooling=delta*0.015;
+    const sinkCooling=cell.heatsink ? delta*0.105 : 0;
+    const capacity=cell.heatsink ? 8 : 2;
+    let rate=(generation-passiveCooling-sinkCooling)/capacity;
+    if(temperature<=ambient && rate<0) rate=0;
+    cell.temperature=Math.max(ambient,temperature+rate*dt);
+
+    generationTotal+=generation;
+    passiveTotal+=passiveCooling;
+    sinkCoolingTotal+=sinkCooling;
+    temperatureSum+=cell.temperature;
+    componentCount++;
+    if(cell.temperature>hottest){
+      hottest=cell.temperature;
+      hottestRate=rate;
+    }
+    if(!cell.burned && cell.temperature>100){
+      cell.burned=true;
+      failures++;
+      G.burnoutCount=(G.burnoutCount||0)+1;
+    }
+  }
+
+  G.heatGeneration=generationTotal;
+  G.passiveCooling=passiveTotal;
+  G.activeCooling=sinkCoolingTotal;
+  G.hottestTemperature=hottest;
+  G.averageTemperature=componentCount ? temperatureSum/componentCount : ambient;
+  G.heatRate=hottestRate;
+  G.peakHeat=Math.max(G.peakHeat||0,hottest);
+  if(failures){
+    toast('회로 출력 이상 감지 · 트러블슈팅 필요');
+    log('회로 출력 이상 감지 · 전류와 출력을 점검하세요');
+  }
+  return failures;
 }
 
 // =========================================================================
@@ -780,23 +1237,13 @@ let lastTick = performance.now();
 function tick(now){
   const dt = Math.min(0.25, (now - lastTick)/1000);
   lastTick = now;
+  nowMs = now;
 
   circuits = analyzeCircuits();
-
-  // Heat 변화: 부품 발열 합 (활성 회로만)
-  let heatDelta = 0;
+  if(updateComponentTemperatures(dt)) circuits=analyzeCircuits();
   let totalRate = 0;
   for(const c of circuits){
     if(c.valid && c.allSwitchesOn){
-      // 실제 작동 중인 유효 회로만 발열/냉각에 기여한다.
-      for(const [x,y,name] of c.activeComps){
-        const d = COMPONENTS[name];
-        if(d.heat){
-          let heat = d.heat;
-          if((c.compCounts?.clock || 0) >= 2 && d.heat > 0) heat *= (c.compCounts.clock === 2 ? 1.2 : 1.5);
-          heatDelta += heat;
-        }
-      }
       c.rate = calculateCircuitRate(c);
       totalRate += c.rate;
     } else {
@@ -804,11 +1251,10 @@ function tick(now){
     }
   }
 
-  // 현재 프로토타입 열 모델: 부품 합산 + 무부하 자연 냉각.
-  const idleCooling = heatDelta <= 0 && G.board.heat > 0 ? -3 : 0;
-  G.heatRate = heatDelta + idleCooling;
-  G.board.heat = Math.max(0, Math.min(G.board.maxHeat, G.board.heat + G.heatRate*dt));
-  G.peakHeat = Math.max(G.peakHeat||0,G.board.heat);
+  const nextHeatState=heatStateAt(G.hottestTemperature||G.board.ambientTemperature);
+  if(nextHeatState.key!==G.heatState){
+    G.heatState=nextHeatState.key;
+  }
 
   G.computeRate = totalRate;
   const produced = totalRate * dt;
@@ -820,6 +1266,7 @@ function tick(now){
   checkFluxMilestones();
   render();
   updateHUD();
+  refreshActiveTooltip();
   requestAnimationFrame(tick);
 }
 
@@ -866,11 +1313,21 @@ function render(){
     ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(size*CELL,i*CELL); ctx.stroke();
   }
 
-  // 유효 회로의 부품 좌표 집합 (활성 표시용)
+  // 유효 회로의 부품 좌표 집합 (활성 표시용) + 셀별 전기 분기 매핑 (전류 흐름용)
   const activeCells = new Set();
+  const branchByCell = new Map();
   let anyInvalid = false;
   for(const c of circuits){
-    if(c.valid && c.allSwitchesOn) for(const [x,y] of c.closedNodes) activeCells.add(idx(x,y));
+    if(c.valid && c.allSwitchesOn){
+      for(const branch of c.electrical.branches){
+        if(!branch.operating) continue;
+        for(const key of branch.nodeKeys){
+          const [x,y]=key.split(',').map(Number);
+          activeCells.add(idx(x,y));
+          branchByCell.set(idx(x,y),branch);
+        }
+      }
+    }
     if(!c.valid && c.comps.length) anyInvalid = true;
   }
 
@@ -884,6 +1341,7 @@ function render(){
       ctx.strokeStyle = active ? '#f5c518' : '#7a6418';
       ctx.lineWidth = active ? 4 : 3;
       drawWire(x,y,px,py);
+      if(active) drawWireFlow(x,y,px,py,branchByCell.get(idx(x,y)));
     }
     if(c.comp && isComponentAnchor(x,y)){
       drawPlacedComponent(x,y,activeCells);
@@ -894,6 +1352,14 @@ function render(){
   if(G.selected && hoverCell && !dragging && !eraseDrag){
     const [x,y]=hoverCell;
     const d=COMPONENTS[G.selected];
+    if(d.attachment){
+      const state=componentStateAt(x,y);
+      if(state && state.cell.comp!=='junction'){
+        drawHeatsinkAttachment(state.anchor[0],state.anchor[1],0.55);
+      }
+      canvas.classList.toggle('invalid',anyInvalid);
+      return;
+    }
     const footprint=componentCellsAt(x,y,G.selected,G.rotation);
     const canPlace=canPlaceComponent(x,y,G.selected,G.rotation)
       && (G.inventory?.[G.selected] || 0)>0;
@@ -923,13 +1389,6 @@ function render(){
     ctx.restore();
   }
 
-  // Heat 오버레이
-  if(G.board.heat > 70){
-    const a = Math.min(0.4,(G.board.heat-70)/100);
-    ctx.fillStyle = `rgba(255,60,60,${a})`;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-  }
-
   canvas.classList.toggle('invalid', anyInvalid);
 }
 
@@ -942,12 +1401,22 @@ function componentVisualCenter(cells){
 function drawPlacedComponent(x,y,activeCells){
   const cell=G.board.cells[idx(x,y)], d=COMPONENTS[cell.comp];
   const footprint=componentCellsAt(x,y);
-  const active=footprint.every(([cx,cy])=>activeCells.has(idx(cx,cy)));
+  const state=componentStateAt(x,y);
+  const active=state.operational && footprint.every(([cx,cy])=>activeCells.has(idx(cx,cy)));
+  const ledDiag=cell.comp==='led' ? ledDiagnostic(x,y) : null;
   for(const [cx,cy] of footprint){
     const px=cx*CELL, py=cy*CELL, m=CELL*0.1;
-    ctx.fillStyle=d.color;
+    ctx.fillStyle = (ledDiag && ledDiag.state!=='off') ? ledDiag.color : d.color;
     ctx.fillRect(px+m,py+m,CELL-2*m,CELL-2*m);
-    if(d.glow&&active){
+    if(d.glow && ledDiag && ledDiag.state!=='off'){
+      // 전류 병목이면 점멸로 경고, 정상이면 출력 세기에 따라 밝기.
+      const pulse = ledDiag.state==='bottleneck' ? 0.5+0.5*Math.abs(Math.sin(nowMs/180)) : 1;
+      ctx.shadowColor=ledDiag.color;
+      ctx.shadowBlur=(8+16*ledDiag.intensity)*pulse;
+      ctx.fillStyle=ledDiag.color;
+      ctx.fillRect(px+m,py+m,CELL-2*m,CELL-2*m);
+      ctx.shadowBlur=0;
+    } else if(d.glow && active){
       ctx.shadowColor='#fff7c0';ctx.shadowBlur=18;
       ctx.fillRect(px+m,py+m,CELL-2*m,CELL-2*m);ctx.shadowBlur=0;
     }
@@ -962,7 +1431,50 @@ function drawPlacedComponent(x,y,activeCells){
   if(cell.comp==='switch'){
     ctx.fillStyle=cell.on?'#6bff8a':'#ff5252';
     ctx.fillRect(x*CELL+CELL-8,y*CELL+4,4,4);
+    if(switchBurstActive(cell)){
+      ctx.strokeStyle='#ffb000'; ctx.lineWidth=3;
+      ctx.strokeRect(x*CELL+2.5,y*CELL+2.5,CELL-5,CELL-5);
+    } else if(cell.on && burstWindowOpen()){
+      ctx.strokeStyle='#ffe14d'; ctx.lineWidth=2;
+      ctx.strokeRect(x*CELL+2.5,y*CELL+2.5,CELL-5,CELL-5);
+    }
   }
+  if(cell.comp==='resistor' && isVariableResistor()){
+    ctx.save();
+    ctx.fillStyle='#ffd479';
+    ctx.font=`bold ${Math.max(8,Math.round(CELL*0.24))}px monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(VR_MODES[resistorModeOf(cell)].label, x*CELL+CELL/2, y*CELL+CELL-1);
+    ctx.restore();
+  }
+  if(cell.heatsink) drawHeatsinkAttachment(x,y,1);
+}
+function drawHeatsinkAttachment(x,y,alpha=1){
+  const footprint=componentCellsAt(x,y);
+  if(!footprint.length) return;
+  const minX=Math.min(...footprint.map(([cx])=>cx))*CELL;
+  const minY=Math.min(...footprint.map(([,cy])=>cy))*CELL;
+  const maxX=(Math.max(...footprint.map(([cx])=>cx))+1)*CELL;
+  const maxY=(Math.max(...footprint.map(([,cy])=>cy))+1)*CELL;
+  const inset=CELL*0.17, left=minX+inset, top=minY+inset;
+  const width=maxX-minX-inset*2, height=maxY-minY-inset*2;
+  ctx.save();
+  ctx.globalAlpha*=alpha;
+  ctx.fillStyle='#75838b';
+  ctx.fillRect(left,top,width,height);
+  const fins=Math.max(6,Math.round(width/(CELL*0.12)));
+  const gap=width/fins;
+  for(let i=0;i<fins;i++){
+    const fx=left+i*gap+gap*0.16;
+    ctx.fillStyle=i%2 ? '#d4dde1' : '#aebbc1';
+    ctx.fillRect(fx,top+2,Math.max(1,gap*0.55),height-4);
+    ctx.fillStyle='rgba(25,35,40,.45)';
+    ctx.fillRect(fx+Math.max(1,gap*0.55),top+3,Math.max(1,gap*0.16),height-6);
+  }
+  ctx.strokeStyle='#e4ebee';
+  ctx.lineWidth=1;
+  ctx.strokeRect(left+.5,top+.5,width-1,height-1);
+  ctx.restore();
 }
 function drawComponentTerminals(x,y,alpha=1){
   const terminals=cellTerminalMap(x,y);
@@ -996,7 +1508,7 @@ function drawPreviewTerminals(anchorX,anchorY,name,rotation,alpha=1){
   for(const terminal of def.terminalCells){
     const [dx,dy]=rotateOffset(terminal.offset,rotation);
     drawTerminalDots(anchorX+dx,anchorY+dy,{
-      [rotatedSide(terminal.side,rotation)]:terminal.type,
+      [rotatedFootprintTerminalSide(terminal.side,rotation)]:terminal.type,
     },alpha);
   }
 }
@@ -1029,6 +1541,39 @@ function drawWire(x,y,px,py){
   }
   if(!drew){ ctx.beginPath(); ctx.arc(cx,cy,3,0,7); ctx.stroke(); }
 }
+// 활성 배선 위에 흐르는 전류 애니메이션. 전류 제한/저전압이면 색과 속도가 바뀐다.
+function drawWireFlow(x,y,px,py,branch){
+  const cx=px+CELL/2, cy=py+CELL/2;
+  const mod=branch?.currentModifier ?? 1;
+  let flowColor='rgba(255,247,176,0.9)';
+  if(branch?.currentLimited) flowColor='rgba(255,120,60,0.95)';
+  else if(branch?.undervoltage) flowColor='rgba(90,160,255,0.95)';
+  else if(branch?.overvoltage) flowColor='rgba(255,176,0,0.95)';
+  ctx.save();
+  ctx.strokeStyle=flowColor;
+  ctx.lineWidth=Math.max(2,CELL*0.06);
+  ctx.lineCap='round';
+  const dash=CELL*0.4;
+  ctx.setLineDash([CELL*0.15, CELL*0.25]);
+  // 전류가 많이 흐를수록 빠르게 흐른다.
+  ctx.lineDashOffset = -((nowMs*0.03*(0.4+mod)) % dash);
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    if(!cellsConnected(x,y,x+dx,y+dy)) continue;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+dx*CELL/2,cy+dy*CELL/2); ctx.stroke();
+  }
+  ctx.restore();
+}
+// LED 진단: 자신이 속한 분기의 전기 상태를 색으로 표현한다 (병목 시각화).
+function ledDiagnostic(x,y){
+  const circuit=circuitAtComponent(x,y);
+  if(!circuit || !circuit.valid || !circuit.allSwitchesOn) return { state:'off' };
+  const branch=electricalBranchAt(circuit,x,y);
+  if(!branch || !branch.operating) return { state:'off' };
+  if(branch.undervoltage) return { state:'undervolt', label:'저전압', color:'#4fa3ff', intensity:0.55 };
+  if(branch.currentLimited) return { state:'bottleneck', label:'전류 병목', color:'#ff5a3c', intensity:Math.max(0.4,branch.currentModifier) };
+  if(branch.overvoltage) return { state:'overvolt', label:'과전압', color:'#ffb000', intensity:1 };
+  return { state:'ok', label:'정상', color:'#fff7c0', intensity:1 };
+}
 
 // =========================================================================
 //  입력 처리: 배선 드래그 / 부품 배치 / 삭제 / 스위치 토글
@@ -1048,22 +1593,46 @@ canvas.addEventListener('mousedown', ev=>{
 
   if(ev.button===2){ eraseDrag=true; eraseCell(x,y); hideComponentTooltip(); return; }
 
-  // 스위치 토글
-  if(cell.comp==='switch'){
-    cell.on=!cell.on;
-    log(`Switch ${cell.on?'ON':'OFF'}`);
-    circuits=analyzeCircuits();
-    for(const circuit of circuits) circuit.rate=calculateCircuitRate(circuit);
-    showBoardComponentTooltip(x,y,ev.clientX,ev.clientY);
-    return;
-  }
-
   if(G.tool==='erase'){ eraseDrag=true; eraseCell(x,y); hideComponentTooltip(); return; }
 
   if(G.selected){
     placeComponent(x,y,G.selected);
     return;
   }
+
+  // Variable Resistor 모드 전환 (GDD 5.2): Low → Mid → High 순환
+  if(cell.comp==='resistor' && isVariableResistor()){
+    const order=['mid','low','high'];
+    cell.resistorMode=order[(order.indexOf(resistorModeOf(cell))+1)%order.length];
+    log(`Variable Resistor → ${VR_MODES[cell.resistorMode].label}`);
+    circuits=analyzeCircuits();
+    for(const circuit of circuits) circuit.rate=calculateCircuitRate(circuit);
+    showBoardComponentTooltip(x,y,ev.clientX,ev.clientY);
+    return;
+  }
+
+  // 스위치: 토글 + 리듬 버스트 (GDD 5.2)
+  if(cell.comp==='switch'){
+    const inWindow=burstWindowOpen();
+    if(cell.on && !inWindow){
+      cell.on=false;
+      log('Switch OFF');
+    } else {
+      cell.on=true;
+      if(inWindow){
+        cell.burstUntil=nowMs+BURST_DURATION;
+        toast(`⚡ 버스트 적중! 출력 ×${BURST_MULT} · 5초`);
+        log(`Switch 버스트 ×${BURST_MULT}`);
+      } else {
+        log('Switch ON');
+      }
+    }
+    circuits=analyzeCircuits();
+    for(const circuit of circuits) circuit.rate=calculateCircuitRate(circuit);
+    showBoardComponentTooltip(x,y,ev.clientX,ev.clientY);
+    return;
+  }
+
   // 배선 모드
   dragging=true;
   wireDragLast=[x,y];
@@ -1150,11 +1719,15 @@ function plainWireDegree(x,y){
 function eraseCell(x,y){
   const c=G.board.cells[idx(x,y)];
   const anchor=componentAnchorAt(x,y);
-  const removedComponent=anchor ? G.board.cells[idx(anchor[0],anchor[1])].comp : null;
+  const anchorCell=anchor ? G.board.cells[idx(anchor[0],anchor[1])] : null;
+  const removedComponent=anchorCell?.comp || null;
+  const wasBurned=Boolean(anchorCell?.burned);
+  const hadHeatsink=Boolean(anchorCell?.heatsink);
   if(anchor){
     for(const [cx,cy] of componentCellsAt(anchor[0],anchor[1])){
       Object.assign(G.board.cells[idx(cx,cy)],{
         wire:false,wireDirs:0,comp:null,on:true,rotation:0,anchorX:null,anchorY:null,
+        burned:false,temperature:G.board.ambientTemperature,heatsink:false,
       });
     }
   } else {
@@ -1163,9 +1736,14 @@ function eraseCell(x,y){
   }
 
   if(removedComponent){
-    G.inventory[removedComponent] = (G.inventory?.[removedComponent] || 0) + 1;
     const name = COMPONENTS[removedComponent]?.name || removedComponent;
-    log(`${name} 회수 - 재고로 이동`);
+    if(wasBurned){
+      log(`${name} 폐기 · 재고로 회수되지 않습니다`);
+    } else {
+      G.inventory[removedComponent] = (G.inventory?.[removedComponent] || 0) + 1;
+      log(`${name} 회수 - 재고로 이동`);
+    }
+    if(hadHeatsink) G.inventory.heatsink=(G.inventory.heatsink||0)+1;
     buildShop();
   }
 }
@@ -1173,6 +1751,26 @@ function placeComponent(x,y,name){
   const def=COMPONENTS[name];
   const inventoryStock = G.inventory?.[name] || 0;
   if(!isComponentUnlocked(name)){ toast(`해금 조건: ${unlockText(name)}`); return; }
+  if(def.attachment){
+    const state=componentStateAt(x,y);
+    if(!state || state.cell.comp==='junction'){
+      toast('Heatsink는 배치된 전기 부품 위에 장착합니다');
+      return;
+    }
+    if(state.cell.heatsink){
+      state.cell.heatsink=false;
+      G.inventory.heatsink=inventoryStock+1;
+      log('Heatsink 회수');
+    } else {
+      if(inventoryStock<=0){ toast('Heatsink 재고가 없습니다'); return; }
+      state.cell.heatsink=true;
+      G.inventory.heatsink=inventoryStock-1;
+      log(`${COMPONENTS[state.cell.comp].name}에 Heatsink 장착`);
+      maybeFirstSolder(name);
+    }
+    buildShop();
+    return;
+  }
   if(inventoryStock <= 0){ toast(`${def.name} 재고가 없습니다`); return; }
   if(!canPlaceComponent(x,y,name,G.rotation||0)){
     toast('부품 크기만큼 빈 공간이 필요합니다');
@@ -1182,6 +1780,7 @@ function placeComponent(x,y,name){
   for(const [cx,cy] of componentCellsAt(x,y,name,G.rotation||0)){
     Object.assign(G.board.cells[idx(cx,cy)],{
       comp:name,wire:false,wireDirs:0,on:true,rotation:G.rotation||0,anchorX:x,anchorY:y,
+      burned:false,temperature:G.board.ambientTemperature,heatsink:false,
     });
   }
   log(`${def.name} 배치 (재고 사용)`);
@@ -1217,9 +1816,9 @@ const UNLOCKS={
     text:()=>`${Math.min(10,G.totalCompute).toFixed(1)} / 10 FLOPS`,
   },
   heat70:{
-    label:'Heat 70°C 도달',
+    label:'개별 부품 70°C 도달',
     progress:()=>Math.min(1,(G.peakHeat||0)/70),
-    text:()=>`${Math.min(70,G.peakHeat||0).toFixed(0)} / 70°C`,
+    text:()=>`최고 ${Math.min(70,G.peakHeat||0).toFixed(0)} / 70°C`,
   },
 };
 function isComponentUnlocked(name){
@@ -1251,6 +1850,14 @@ function checkComponentUnlocks(){
 //  부품 설명 툴팁
 // =========================================================================
 const componentTooltip=document.getElementById('componentTooltip');
+// 현재 마우스가 올라가 있는 대상을 기억해 매 틱 툴팁 내용을 실시간 갱신한다.
+let activeTooltip=null;
+function refreshActiveTooltip(){
+  if(!activeTooltip) return;
+  if(!componentTooltip.classList.contains('open')){ activeTooltip=null; return; }
+  if(activeTooltip.kind==='board') showBoardCellTooltip(activeTooltip.x,activeTooltip.y,activeTooltip.cx,activeTooltip.cy);
+  else if(activeTooltip.kind==='shop') showShopComponentTooltip(activeTooltip.name,activeTooltip.cx,activeTooltip.cy);
+}
 
 function tooltipRow(label,value,className=''){
   return `<div class="tooltip-row"><span>${label}</span><strong class="${className}">${value}</strong></div>`;
@@ -1276,24 +1883,35 @@ function showComponentTooltip(html,clientX,clientY){
   componentTooltip.style.top=Math.max(edge,top)+'px';
 }
 function hideComponentTooltip(){
+  activeTooltip=null;
   componentTooltip.classList.remove('open');
   componentTooltip.setAttribute('aria-hidden','true');
 }
 function showShopComponentTooltip(name,clientX,clientY){
-  const d=COMPONENTS[name];
-  const heatText=d.heat<0 ? `${d.heat}°C/s` : `+${d.heat}°C/s`;
+  activeTooltip={kind:'shop',name,cx:clientX,cy:clientY};
+  const d=effComp(name);
+  const elec={
+    power:`기전력 ${d.vl}V · 최대 ${d.amps}A · 내부저항 ${batteryInternalOhm()}Ω`,
+    clock:'저항 0.4Ω · 거의 열 없음',
+    compute:'저항 2.0Ω · 줄열(I²R)로 가장 뜨거움 → 방열판/저항 필요',
+    passive:d.variable ? '가변 저항 1/3/6Ω · 전류 제한' : '저항 3.0Ω · 전류 제한',
+    feedback:'저항 2.0Ω · 분기 전류 상태를 색으로 표시',
+    routing:'무저항 분기 접점',
+    control:'거의 무저항 · ON/OFF·버스트',
+    thermal:'전기 부품 아님 · 열용량·핀 방열 강화',
+  }[d.kind] || '';
   const terminalText=d.kind==='routing' ? 'N · E · S · W 접점'
-    : d.terminalCells ? '입력 N · 출력 S'
+    : d.attachment ? '전기 단자 없음'
     : '입력 W · 출력 E';
   const unlocked=isComponentUnlocked(name);
   const rows=[
     tooltipRow('주요 효과',d.effect),
-    tooltipRow('크기',d.footprint ? `${d.footprint.length}셀` : '1셀'),
-    tooltipRow('Heat',heatText),
+    tooltipRow('형태',d.attachment ? '부품 위 장착물' : '1셀'),
+    tooltipRow('전기 특성',elec),
     tooltipRow('기본 단자',terminalText),
     !unlocked ? tooltipRow('해금 조건',unlockText(name),'tooltip-status-bad') : '',
     tooltipRow('회로 조건',d.requirement),
-    tooltipRow('구매 가격',fmtMoney(d.cost)),
+    tooltipRow('구매 가격',fmtMoney(unitCost(name))),
   ].join('');
   showComponentTooltip(tooltipShell(d,rows),clientX,clientY);
 }
@@ -1303,29 +1921,59 @@ function circuitAtComponent(x,y){
 function circuitAtNode(x,y){
   return circuits.find(c=>c.nodes.some(([cx,cy])=>cx===x && cy===y)) || null;
 }
+function topologyLabel(topology){
+  return { series:'직렬', parallel:'병렬', mixed:'혼합', open:'열림' }[topology]||topology;
+}
+function branchStatusText(branch){
+  if(!branch) return '-';
+  if(branch.shortCircuit) return '정지 · 내부 단락';
+  if(branch.disabled) return '정지 · 신호 경로 이상';
+  if(!branch.operating) return '정지 · 전류 부족(저항 과다)';
+  if(branch.currentLimited) return `전류 제한 · 배터리 용량 초과 (${(branch.currentModifier*100).toFixed(0)}%)`;
+  if(branch.overvoltage) return '과전류 · 출력↑ 발열 급증(냉각 필요)';
+  if(branch.undervoltage) return '전류 부족 · 출력 저하(저항↓ 또는 전압↑)';
+  return '정상';
+}
 function componentContribution(name,d,c,cell,onClosedPath){
+  const state=componentStateAt(cell.anchorX??0,cell.anchorY??0);
+  if(!state?.operational) return '분기 출력에 기여하지 않음';
   if(c && !onClosedPath) return '닫힌 경로에 포함되지 않음';
   if(!c || !c.valid) return d.effect;
-  if(name==='battery') return `회로 VL ${c.vl} 공급 중`;
+  if(name==='battery') return `기전력 ${c.electrical.emf} V · 최대 ${c.electrical.currentCapacity.toFixed(1)} A`;
   if(name==='clock') return `Clock Modifier ×${c.clockModifier.toFixed(2)}`;
   if(name==='logic'){
-    const contribution=c.base>0 ? c.rate*(d.base/c.base) : 0;
+    const branch=electricalBranchAt(c,cell.anchorX??0,cell.anchorY??0);
+    const branchLogicBase=branch?.components.reduce((sum,[, ,component])=>
+      sum+(COMPONENTS[component]?.kind==='compute' ? effStat(component,'base') : 0),0)||0;
+    const contribution=branchLogicBase>0 && c.poweredBase>0
+      ? c.rate*(branch.outputBase/c.poweredBase)*(effStat(name,'base')/branchLogicBase) : 0;
     return `${fmtCompute(contribution)}/s 생산 기여`;
   }
-  if(name==='resistor') return `Stability ×${c.stability.toFixed(2)}`;
-  if(name==='led') return c.allSwitchesOn ? 'LED 점등 중' : 'LED 꺼짐';
+  if(name==='resistor'){
+    const branch=electricalBranchAt(c,cell.anchorX??0,cell.anchorY??0);
+    const ohm=componentOhm('resistor',cell);
+    const drop=branch ? (branch.current*ohm) : 0;
+    return `저항 ${ohm.toFixed(1)}Ω · 전압강하 ${drop.toFixed(2)}V · 전류 제한(과열 보호)`;
+  }
+  if(name==='led'){
+    const diag=ledDiagnostic(cell.anchorX??0,cell.anchorY??0);
+    if(diag.state==='off') return 'LED 꺼짐';
+    if(diag.state==='ok') return 'LED 점등 · 전류 정상';
+    return `LED 점등 · ${diag.label} 감지`;
+  }
   if(name==='switch') return cell.on ? 'Switch ON' : 'Switch OFF';
-  if(name==='heatsink') return 'Heat -5°C/s 냉각';
   return d.effect;
 }
 function showBoardComponentTooltip(x,y,clientX,clientY){
   const anchor=componentAnchorAt(x,y);
   if(!anchor){ hideComponentTooltip(); return; }
   const cell=G.board.cells[idx(anchor[0],anchor[1])];
+  const componentState=componentStateAt(anchor[0],anchor[1]);
 
   const name=cell.comp;
   const d=COMPONENTS[name];
   const circuit=circuitAtComponent(anchor[0],anchor[1]);
+  const branch=electricalBranchAt(circuit,anchor[0],anchor[1]);
   const occupiedCells=componentCellsAt(anchor[0],anchor[1]);
   const onClosedPath=Boolean(circuit && occupiedCells.every(([cx,cy])=>circuit.closedNodeKeys?.has(`${cx},${cy}`)));
   let status='연결되지 않음';
@@ -1334,29 +1982,47 @@ function showBoardComponentTooltip(x,y,clientX,clientY){
     if(!onClosedPath) status='정지 · 닫힌 경로 밖';
     else if(!circuit.valid) status=`정지 · ${circuit.reason}`;
     else if(!circuit.allSwitchesOn) status='정지 · Switch OFF';
+    else if(branch && !branch.operating) status=branchStatusText(branch);
     else { status='작동 중'; statusClass='tooltip-status-ok'; }
   }
 
-  let effectiveHeat=d.heat;
-  if(circuit && (circuit.compCounts?.clock || 0)>=2 && d.heat>0){
+  const operatingNow=componentState.operational && branch?.operating && onClosedPath && circuit?.valid && circuit.allSwitchesOn;
+  // 줄열: 작동 중일 때만 발열. clock 과구동 시 가산.
+  let effectiveHeat=operatingNow ? jouleHeatOf(cell,branch) : 0;
+  if(operatingNow && (circuit.compCounts?.clock || 0)>=2){
     effectiveHeat*=circuit.compCounts.clock===2 ? 1.2 : 1.5;
   }
-  const heatText=effectiveHeat<0 ? `${effectiveHeat.toFixed(1)}°C/s`
-    : effectiveHeat>0 ? `+${effectiveHeat.toFixed(1)}°C/s`
-    : '0.0°C/s';
+  const heatText=effectiveHeat>0 ? `+${effectiveHeat.toFixed(2)} Heat/s (I²R)` : '0.0 Heat/s';
+  const ohm=componentOhm(name,cell);
+  const cur=branch?.current||0;
+  const power=cur*cur*ohm;                       // 이 부품 소비 전력 P=I²R (W)
+  const drop=cur*ohm;                            // 전압강하 V=IR
   const rows=[
     tooltipRow('현재 상태',status,statusClass),
     tooltipRow('단자 방향',terminalOrientationText(cell)),
+    tooltipRow('회로 구성',circuit ? `${topologyLabel(circuit.electrical.topology)} · 총저항 ${circuit.electrical.loopResistance?.toFixed(2)}Ω` : '-'),
+    tooltipRow('분기 상태',branchStatusText(branch),branch?.operating?'':'tooltip-status-bad'),
+    tooltipRow('기전력 / 전류',branch ? `EMF ${circuit.electrical.emf} V · I ${branch.current.toFixed(3)} A` : '-'),
+    name!=='battery' && name!=='junction' ? tooltipRow('이 부품',`R ${ohm.toFixed(2)}Ω · 전압강하 ${drop.toFixed(2)}V · ${power.toFixed(2)}W`) : '',
+    tooltipRow('부품 온도',`${componentState.temperature.toFixed(1)}°C`),
+    tooltipRow('Heatsink',componentState.heatsink ? '장착됨' : '없음'),
+    name==='switch' ? tooltipRow('버스트',
+      switchBurstActive(cell) ? `활성 · ×${BURST_MULT} (${Math.ceil((cell.burstUntil-nowMs)/1000)}s)`
+      : burstWindowOpen() ? '지금 클릭! 버스트 타이밍'
+      : '대기 · 깜빡일 때 클릭',
+      switchBurstActive(cell)?'tooltip-status-ok':'') : '',
+    name==='resistor' && isVariableResistor() ? tooltipRow('저항 모드',
+      `${VR_MODES[resistorModeOf(cell)].label} (${VR_MODES[resistorModeOf(cell)].ohm}Ω) · 클릭 전환`) : '',
     tooltipRow('현재 기여',componentContribution(name,d,circuit,cell,onClosedPath)),
-    tooltipRow('Heat 기여',onClosedPath && circuit?.valid && circuit.allSwitchesOn ? heatText : '0.0°C/s'),
+    tooltipRow('열 기여',operatingNow ? heatText : '0.0 Heat/s'),
     tooltipRow('회로 출력',circuit ? `${fmtCompute(circuit.rate)}/s` : '0.0 FLOPS/s'),
   ].join('');
   showComponentTooltip(tooltipShell(d,rows),clientX,clientY);
 }
 function showBoardCellTooltip(x,y,clientX,clientY){
   const cell=G.board.cells[idx(x,y)];
-  if(cell?.comp){ showBoardComponentTooltip(x,y,clientX,clientY); return; }
-  if(cell?.wire){ showWireTooltip(x,y,clientX,clientY); return; }
+  if(cell?.comp){ activeTooltip={kind:'board',x,y,cx:clientX,cy:clientY}; showBoardComponentTooltip(x,y,clientX,clientY); return; }
+  if(cell?.wire){ activeTooltip={kind:'board',x,y,cx:clientX,cy:clientY}; showWireTooltip(x,y,clientX,clientY); return; }
   hideComponentTooltip();
 }
 function wireConnectionSides(x,y){
@@ -1366,6 +2032,7 @@ function wireConnectionSides(x,y){
 }
 function showWireTooltip(x,y,clientX,clientY){
   const circuit=circuitAtNode(x,y);
+  const branch=electricalBranchAt(circuit,x,y);
   const onClosedPath=Boolean(circuit?.closedNodeKeys?.has(`${x},${y}`));
   const illegalBranch=Boolean(circuits.invalidWireBranches?.some(([wx,wy])=>wx===x&&wy===y));
   const sides=wireConnectionSides(x,y);
@@ -1373,6 +2040,7 @@ function showWireTooltip(x,y,clientX,clientY){
   let status='열린 배선';
   let statusClass='tooltip-status-bad';
   if(illegalBranch) status='오류 · Junction 필요';
+  else if(branch && !branch.operating) status=branchStatusText(branch);
   else if(circuit?.valid && circuit.allSwitchesOn && onClosedPath){
     status='활성 전류 흐름';
     statusClass='tooltip-status-ok';
@@ -1386,6 +2054,9 @@ function showWireTooltip(x,y,clientX,clientY){
     tooltipRow('연결 방향',sides.length ? sides.join(' · ') : '연결 없음'),
     tooltipRow('연결 수',`${sides.length}방향`),
     tooltipRow('닫힌 경로',onClosedPath ? '포함' : '미포함'),
+    tooltipRow('회로 구성',circuit ? `${topologyLabel(circuit.electrical.topology)} · 총저항 ${circuit.electrical.loopResistance?.toFixed(2)}Ω` : '-'),
+    tooltipRow('분기 상태',branchStatusText(branch),branch?.operating?'':'tooltip-status-bad'),
+    tooltipRow('기전력 / 전류',branch ? `EMF ${circuit.electrical.emf} V · I ${branch.current.toFixed(3)} A` : '-'),
     tooltipRow('회로 출력',circuit ? `${fmtCompute(circuit.rate)}/s` : '0.0 FLOPS/s'),
     tooltipRow('Wire Efficiency',circuit?.valid ? `${(circuit.wireEff*100).toFixed(1)}%` : '-'),
   ].join('');
@@ -1401,7 +2072,7 @@ function showWireTooltip(x,y,clientX,clientY){
 function terminalOrientationText(cell){
   if(COMPONENTS[cell.comp]?.terminalCells){
     const terminals=COMPONENTS[cell.comp].terminalCells.map(terminal=>{
-      return `${terminal.type==='input'?'입력':'출력'} ${rotatedSide(terminal.side,cell.rotation)}`;
+      return `${terminal.type==='input'?'입력':'출력'} ${rotatedFootprintTerminalSide(terminal.side,cell.rotation)}`;
     });
     return terminals.join(' · ');
   }
@@ -1421,14 +2092,16 @@ function buildShop(){
     const inventoryStock = G.inventory?.[name] || 0;
     const stockLabel = inventoryStock > 0 ? `<div class="stock">재고 ${inventoryStock}개</div>` : '';
     const lockLabel = !unlocked ? `<div class="lock">🔒 ${unlockText(name)}</div>` : '';
-    const canBuy = unlocked && (starterStock > 0 || G.funds >= d.cost);
+    const price = unitCost(name);
+    const canBuy = unlocked && (starterStock > 0 || G.funds >= price);
     const el=document.createElement('div');
     el.className='item'+(G.selected===name?' selected':'')+(unlocked?'':' locked');
     el.dataset.component=name;
+    const displayName=TIERS[name] ? effComp(name).label : d.name;
     el.innerHTML=`<div class="ico" style="background:${d.color}33">${d.icon}</div>
-      <div class="meta"><div class="name">${d.name}</div>
-      <div class="desc">${componentDesc(d)}</div>${stockLabel}${lockLabel}</div>
-      <button ${canBuy?'':'disabled'}>${unlocked ? (starterStock > 0 ? `무료 ×${starterStock}` : fmtMoney(d.cost)) : '잠김'}</button>`;
+      <div class="meta"><div class="name">${displayName}</div>
+      <div class="desc">${componentDesc(name)}</div>${stockLabel}${lockLabel}</div>
+      <button ${canBuy?'':'disabled'}>${unlocked ? (starterStock > 0 ? `무료 ×${starterStock}` : fmtMoney(price)) : '잠김'}</button>`;
     el.onclick=()=>{
       if(!isComponentUnlocked(name)){ toast(`해금 조건: ${unlockText(name)}`); return; }
       const changing=G.selected!==name;
@@ -1470,23 +2143,25 @@ function buyComponent(name){
     G.inventory[name]=(G.inventory?.[name] || 0)+1;
     log(`${d.name} 무료 지급품 수령`);
   } else {
-    if(G.funds < d.cost){ toast('자금 부족'); return; }
-    G.funds-=d.cost;
+    const price=unitCost(name);
+    if(G.funds < price){ toast('자금 부족'); return; }
+    G.funds-=price;
     G.inventory[name]=(G.inventory?.[name] || 0)+1;
-    log(`${d.name} 구매 (-$${d.cost})`);
+    log(`${effComp(name).label||d.name} 구매 (-$${price})`);
   }
   buildShop();
   updateHUD();
 }
-function componentDesc(d){
-  if(d.kind==='power') return `전원 · VL ${d.vl} · ${d.heat}°C/s`;
-  if(d.kind==='clock') return `연산 주기 · VR ${d.vr} · ${d.heat}°C/s`;
-  if(d.kind==='compute') return `연산 ${d.base} FLOPS · VR ${d.vr} · ${d.heat}°C/s`;
-  if(d.kind==='passive') return `안정화 · ${d.heat}°C/s`;
-  if(d.kind==='feedback') return `디버그 표시 · ${d.heat}°C/s`;
-  if(d.kind==='routing') return '4방향 분기 접점';
-  if(d.kind==='thermal') return `${d.footprint?.length||1}셀 · 냉각 ${d.heat}°C/s`;
-  if(d.kind==='control') return `회로 ON/OFF 제어`;
+function componentDesc(name){
+  const d=effComp(name);
+  if(d.kind==='power') return `기전력 ${d.vl}V · 최대 ${d.amps}A · 내부저항 ${batteryInternalOhm()}Ω`;
+  if(d.kind==='clock') return `연산 주기 · 0.4Ω · 저전력`;
+  if(d.kind==='compute') return `연산 ${d.base} FLOPS · 2.0Ω 부하 · 발열 큼(냉각 필요)`;
+  if(d.kind==='passive') return d.variable ? `가변 저항 1~6Ω · 클릭 전환 · 전류 제한` : `저항 3.0Ω · 전류 제한(과열 보호)`;
+  if(d.kind==='feedback') return `전류 진단등 · 2.0Ω`;
+  if(d.kind==='routing') return '4방향 분기 접점 · 무저항';
+  if(d.kind==='thermal') return `부품 장착형 · 핀 방열`;
+  if(d.kind==='control') return `회로 ON/OFF · 리듬 버스트`;
   return '';
 }
 
@@ -1499,7 +2174,6 @@ function expandGrid(){
   for(let y=0;y<oldSize;y++) for(let x=0;x<oldSize;x++){
     nb.cells[y*newSize+x]=old.cells[y*oldSize+x];
   }
-  nb.heat=old.heat;
   G.board=nb;
   fitCanvas();
   document.getElementById('boardLabel').textContent=`Board #1 (${newSize}×${newSize})`;
@@ -1510,10 +2184,11 @@ function expandGrid(){
 function refreshTools(){
   document.getElementById('toolWire').classList.toggle('active', G.tool==='wire');
   document.getElementById('toolErase').classList.toggle('active', G.tool==='erase');
-  document.getElementById('rotateComponent').disabled=!G.selected;
+  document.getElementById('rotateComponent').disabled=!G.selected || COMPONENTS[G.selected]?.attachment;
 }
 function rotateSelection(){
   if(G.selected){
+    if(COMPONENTS[G.selected]?.attachment) return;
     G.rotation=((G.rotation||0)+1)%4;
     updateSelectionStatus();
     render();
@@ -1534,10 +2209,12 @@ function rotateSelection(){
   const snapshot={
     comp:anchorCell.comp,on:anchorCell.on,rotation:newRotation,
     anchorX:anchor[0],anchorY:anchor[1],
+    burned:Boolean(anchorCell.burned),temperature:anchorCell.temperature,heatsink:Boolean(anchorCell.heatsink),
   };
   for(const [cx,cy] of oldCells){
     Object.assign(G.board.cells[idx(cx,cy)],{
       comp:null,wireDirs:0,on:true,rotation:0,anchorX:null,anchorY:null,
+      burned:false,temperature:G.board.ambientTemperature,heatsink:false,
     });
   }
   for(const [cx,cy] of componentCellsAt(anchor[0],anchor[1],snapshot.comp,newRotation)){
@@ -1566,8 +2243,8 @@ function updateSelectionStatus(){
   const d=COMPONENTS[G.selected];
   document.getElementById('selectedIcon').textContent=d.icon;
   document.getElementById('selectedName').textContent=d.name;
-  const orientation=(G.rotation||0)%2===0 ? '가로' : '세로';
-  document.getElementById('selectedStock').textContent=`재고 ${G.inventory?.[G.selected] || 0}개 · ${orientation}`;
+  const detail=d.attachment ? '부품에 장착' : ((G.rotation||0)%2===0 ? '가로' : '세로');
+  document.getElementById('selectedStock').textContent=`재고 ${G.inventory?.[G.selected] || 0}개 · ${detail}`;
   el.classList.add('open');
 }
 document.getElementById('cancelSelection').onclick=cancelSelection;
@@ -1590,9 +2267,47 @@ document.querySelectorAll('.tabs button').forEach(b=>{
   };
 });
 
+const TIER_TRACKS=[
+  { key:'battery', icon:'🔋', title:'배터리 업그레이드',
+    desc:t=>`VL ${t.vl} · ${t.amps}A · 발열 ${t.heat} Heat/s` },
+  { key:'logic', icon:'▣', title:'Logic Cell 업그레이드',
+    desc:t=>`Base ${t.base} FLOPS · 발열 ${t.heat} Heat/s` },
+  { key:'resistor', icon:'🟫', title:'저항 업그레이드',
+    desc:t=>t.variable ? `Variable · 모드 전환 · 발열 ${t.heat} Heat/s`
+      : t.precision ? `Precision · 1개로 Stability ×1.05` : `기본 안정화` },
+];
+function tierUnlockText(unlock){
+  return `누적 ${unlock.toLocaleString()} FLOPS 필요 (${Math.floor(G.totalCompute).toLocaleString()})`;
+}
+function buyTier(key){
+  const ladder=TIERS[key]; const cur=G.tiers[key]||0; const next=ladder[cur+1];
+  if(!next) return;
+  if(G.totalCompute<next.unlock){ toast(`해금 조건: ${tierUnlockText(next.unlock)}`); return; }
+  if(G.funds<next.cost){ toast('자금 부족'); return; }
+  G.funds-=next.cost; G.tiers[key]=cur+1;
+  toast(`${next.label} 업그레이드 완료!`); log(`${next.label}(으)로 업그레이드`);
+  buildUpgrades(); buildShop(); updateHUD();
+}
 function buildUpgrades(){
   const el=document.getElementById('tabUpgrades');
-  el.innerHTML='<h3>배선 업그레이드 (도체 등급)</h3>';
+  el.innerHTML='';
+  for(const track of TIER_TRACKS){
+    const ladder=TIERS[track.key]; const cur=G.tiers[track.key]||0; const next=ladder[cur+1];
+    el.insertAdjacentHTML('beforeend',`<h3>${track.title} · 현재 T${cur} ${ladder[cur].label}</h3>`);
+    if(!next){
+      el.insertAdjacentHTML('beforeend','<div class="desc" style="color:var(--muted);font-size:12px">최고 티어 도달 (Phase 1)</div>');
+      continue;
+    }
+    const reqMet=G.totalCompute>=next.unlock;
+    const div=document.createElement('div'); div.className='item';
+    const sub=!reqMet ? `<div class="lock">🔒 ${tierUnlockText(next.unlock)}</div>` : '';
+    div.innerHTML=`<div class="ico" style="background:#2a3138">${track.icon}</div>
+      <div class="meta"><div class="name">${next.label}</div><div class="desc">${track.desc(next)}</div>${sub}</div>
+      <button ${(!reqMet||G.funds<next.cost)?'disabled':''}>${fmtMoney(next.cost)}</button>`;
+    div.querySelector('button').onclick=()=>buyTier(track.key);
+    el.appendChild(div);
+  }
+  el.insertAdjacentHTML('beforeend','<h3>배선 업그레이드 (도체 등급)</h3>');
   const grades=[
     {name:'무산소동선 (OFC)', cap:0.97, cost:1500},
     {name:'은도금 동선', cap:0.985, cost:12000},
@@ -1606,35 +2321,68 @@ function buildUpgrades(){
     if(!owned) div.querySelector('button').onclick=()=>{ if(G.funds>=g.cost){ G.funds-=g.cost; G.conductorCap=g.cap; toast('도체 등급 업그레이드!'); buildUpgrades(); } };
     el.appendChild(div);
   }
-  el.insertAdjacentHTML('beforeend','<h3>참고</h3><div class="desc" style="color:var(--muted);font-size:12px;line-height:1.5">자동화·로직게이트·프레스티지(Tape-out)는 다음 단계 구현 예정입니다. 현재는 핵심 루프(배선→연산→자금→구매) 검증용 골격입니다.</div>');
+  el.insertAdjacentHTML('beforeend','<h3>참고</h3><div class="desc" style="color:var(--muted);font-size:12px;line-height:1.5">자동화·로직게이트·프레스티지(Tape-out)는 다음 단계 구현 예정입니다. Variable Resistor는 보드에서 클릭해 Low/Mid/High로 전환합니다.</div>');
 }
 
 function buildStats(){
   const el=document.getElementById('tabStats');
   const valid=circuits.filter(c=>c.valid);
   const avgEff=valid.length? valid.reduce((s,c)=>s+c.wireEff,0)/valid.length:0;
+  const heatsinks=countAttachedHeatsinks();
+  const topologyCounts={series:0,parallel:0,mixed:0};
+  for(const circuit of valid){
+    const topology=circuit.electrical?.topology;
+    if(topologyCounts[topology]!=null) topologyCounts[topology]++;
+  }
+  const totalCurrent=valid.reduce((sum,circuit)=>sum+(circuit.electrical?.currentDemand||0),0);
+  const totalCapacity=valid.reduce((sum,circuit)=>sum+(circuit.electrical?.currentCapacity||0),0);
   el.innerHTML=`
     <div class="statline"><span>총 누적 연산량</span><span class="v">${fmtCompute(G.totalCompute)}</span></div>
     <div class="statline"><span>현재 연산력</span><span class="v">${fmtCompute(G.computeRate)}/s</span></div>
     <div class="statline"><span>보유 자금</span><span class="v">${fmtMoney(G.funds)}</span></div>
     <div class="statline"><span>유효 회로 수</span><span class="v">${valid.length}</span></div>
+    <div class="statline"><span>회로 구성</span><span class="v">직렬 ${topologyCounts.series} · 병렬 ${topologyCounts.parallel} · 혼합 ${topologyCounts.mixed}</span></div>
+    <div class="statline"><span>전류 부하 / 용량</span><span class="v">${totalCurrent.toFixed(2)} / ${totalCapacity.toFixed(2)} A</span></div>
     <div class="statline"><span>평균 효율</span><span class="v">${(avgEff*100).toFixed(1)}% (Cap ${Math.round(G.conductorCap*100)}%)</span></div>
     <div class="statline"><span>최고 효율</span><span class="v">${(bestEfficiency()*100).toFixed(1)}%</span></div>
-    <div class="statline"><span>Heat</span><span class="v">${G.board.heat.toFixed(1)}°C / ${G.board.maxHeat}°C</span></div>
-    <div class="statline"><span>Heat 변화율</span><span class="v">${formatHeatRate(G.heatRate)}</span></div>
+    <div class="statline"><span>최고 부품 온도</span><span class="v">${(G.hottestTemperature||G.board.ambientTemperature).toFixed(1)}°C</span></div>
+    <div class="statline"><span>평균 부품 온도</span><span class="v">${(G.averageTemperature||G.board.ambientTemperature).toFixed(1)}°C</span></div>
+    <div class="statline"><span>주변 온도</span><span class="v">${G.board.ambientTemperature.toFixed(1)}°C</span></div>
+    <div class="statline"><span>발열량</span><span class="v">+${G.heatGeneration.toFixed(1)} Heat/s</span></div>
+    <div class="statline"><span>자연 방열</span><span class="v">-${G.passiveCooling.toFixed(1)} Heat/s</span></div>
+    <div class="statline"><span>Heatsink 냉각</span><span class="v">-${G.activeCooling.toFixed(1)} Heat/s</span></div>
+    <div class="statline"><span>장착 Heatsink</span><span class="v">${heatsinks}개</span></div>
+    <div class="statline"><span>최고 온도 변화율</span><span class="v">${formatHeatRate(G.heatRate)}</span></div>
     <div class="statline"><span>Flux</span><span class="v">${G.flux}</span></div>
   `;
+}
+function countAttachedHeatsinks(){
+  let count=0;
+  for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+    if(!isComponentAnchor(x,y)) continue;
+    if(G.board.cells[idx(x,y)].heatsink) count++;
+  }
+  return count;
 }
 
 function updateHUD(){
   document.getElementById('hFunds').textContent=fmtMoney(G.funds);
   document.getElementById('hCompute').textContent='+'+fmtCompute(G.computeRate);
-  document.getElementById('hHeat').textContent=G.board.heat.toFixed(0)+'°C';
+  const hottest=G.hottestTemperature||G.board.ambientTemperature;
+  document.getElementById('hHeat').textContent=hottest.toFixed(0)+'°C';
   const heatRateEl=document.getElementById('hHeatRate');
   heatRateEl.textContent=formatHeatRate(G.heatRate);
   heatRateEl.classList.toggle('heating',G.heatRate>0.05);
   heatRateEl.classList.toggle('cooling',G.heatRate<-0.05);
-  document.getElementById('hHeatBar').style.width=Math.min(100,G.board.heat/G.board.maxHeat*100)+'%';
+  document.getElementById('hHeatBreakdown').textContent=
+    `평균 ${(G.averageTemperature||G.board.ambientTemperature).toFixed(0)}°C · Heatsink ${countAttachedHeatsinks()}개`;
+  const heatState=heatStateAt(hottest);
+  const heatStateEl=document.getElementById('hHeatState');
+  heatStateEl.textContent=heatState.label;
+  heatStateEl.className=heatState.key;
+  const heatBar=document.getElementById('hHeatBar');
+  heatBar.style.width=Math.min(100,hottest)+'%';
+  heatBar.className=heatState.key;
   document.getElementById('hFlux').textContent=G.flux;
   document.getElementById('hBP').textContent=G.bp;
 
@@ -1670,7 +2418,7 @@ const TUTORIAL_STEPS=[
   { title:'기본 부품 배치', copy:'받은 부품을 배치하세요. R키로 회전하며 파란 입력과 노란 출력을 확인할 수 있습니다.' },
   { title:'부품 연결', copy:'전선을 부품 단자에 연결해 네 부품을 하나의 회로로 만드세요.' },
   { title:'닫힌 회로 만들기', copy:'전선의 시작과 끝을 연결해 전류가 순환하는 닫힌 루프를 만드세요.' },
-  { title:'연산 시작', copy:'유효 회로를 작동시켜 누적 5 FLOPS를 생산하세요.' },
+  { title:'연산 시작', copy:'유효 회로를 작동시켜 누적 5 FLOPS를 생산하세요. 전류 I = 전압 ÷ 저항으로 출력이 정해집니다. (헤더 📖 = 전기 기초)' },
 ];
 function boardComponentCounts(){
   const counts={};
@@ -1706,7 +2454,7 @@ function updateTutorial(){
   if(G.tutorialStep>=TUTORIAL_STEPS.length){
     label.textContent='Tutorial 완료';
     title.textContent='기본 회로 완성';
-    copy.textContent='이제 회로를 확장하고 효율과 Heat를 조정해 생산량을 높이세요.';
+    copy.textContent='배터리를 업그레이드하면 전압↑ → 전류·출력↑ 이지만 Logic이 과열됩니다(I²R). 방열판이나 저항으로 열을 다스리세요. 자세한 원리는 헤더의 📖 버튼.';
     bar.style.width='100%';
     return;
   }
@@ -1720,22 +2468,35 @@ let circuitIssueSignature='';
 function updateCircuitIssues(){
   const issueEl=document.getElementById('circuitIssues');
   const withComponents=circuits.filter(c=>c.comps.length);
+  const hottest=G.hottestTemperature||G.board.ambientTemperature;
+  const thermalState=heatStateAt(hottest);
+  const thermalIssue=thermalState.key==='normal' ? null
+    : `최고 온도 ${thermalState.label}: ${hottest.toFixed(0)}°C`;
   let html='';
   if(!withComponents.length){
-    html='<div class="circuit-issue">○ 회로 진단 대기 중</div>';
+    html=thermalIssue
+      ? `<div class="circuit-issue circuit-warning">△ ${thermalIssue}</div>`
+      : '<div class="circuit-issue">○ 회로 진단 대기 중</div>';
   } else {
     const issues=[];
+    if(thermalIssue) issues.push(thermalIssue);
     if(circuits.invalidWireBranches?.length) issues.push(`일반 전선 분기 ${circuits.invalidWireBranches.length}곳 · Junction 필요`);
     if(circuits.invalidContacts?.length) issues.push(`단자 방향 불일치 ${circuits.invalidContacts.length}곳`);
     if(circuits.junctionWarnings?.length) issues.push(`Junction 연결 부족 ${circuits.junctionWarnings.length}곳`);
     withComponents.forEach((c,i)=>{
       if(!c.valid) issues.push(`회로 ${i+1}: ${c.reason}`);
       else if(!c.allSwitchesOn) issues.push(`회로 ${i+1}: Switch OFF`);
+      else if(c.electrical.branches.some(branch=>branch.shortCircuit)) issues.push(`회로 ${i+1}: 분기 단락 감지`);
+      else if(c.electrical.branches.some(branch=>branch.disabled)) issues.push(`회로 ${i+1}: 분기 신호 이상`);
+      else if(c.electrical.branches.some(branch=>!branch.operating)) issues.push(`회로 ${i+1}: 전류 용량 부족 분기`);
+      else if(c.electrical.branches.some(branch=>branch.undervoltage)) issues.push(`회로 ${i+1}: 저전압 분기`);
+      else if(c.electrical.branches.some(branch=>branch.overvoltage)) issues.push(`회로 ${i+1}: 과전압 분기 · 발열 증가`);
       else if(c.offPathCompCount>0) issues.push(`회로 ${i+1}: 경로 밖 부품 ${c.offPathCompCount}개`);
     });
     html=issues.length
       ? issues.slice(0,3).map(text=>{
-          const warning=text.includes('경로 밖 부품') || text.includes('Junction 연결 부족');
+          const warning=text.includes('경로 밖 부품') || text.includes('Junction 연결 부족')
+            || text.includes('Heat 주의');
           return `<div class="circuit-issue${warning?' circuit-warning':''}">${warning?'△':'!'} ${text}</div>`;
         }).join('')
       : `<div class="circuit-issue circuit-ok">✓ 유효 회로 ${withComponents.length}개 작동 중</div>`;
@@ -1776,13 +2537,22 @@ function closeSettings(){
 document.getElementById('settingsButton').onclick=openSettings;
 document.getElementById('settingsClose').onclick=closeSettings;
 settingsModal.addEventListener('mousedown', e=>{ if(e.target===settingsModal) closeSettings(); });
+
+const helpModal=document.getElementById('helpModal');
+function openHelp(){ helpModal.classList.add('open'); helpModal.setAttribute('aria-hidden','false'); }
+function closeHelp(){ helpModal.classList.remove('open'); helpModal.setAttribute('aria-hidden','true'); }
+document.getElementById('helpButton').onclick=openHelp;
+document.getElementById('helpClose').onclick=closeHelp;
+helpModal.addEventListener('mousedown', e=>{ if(e.target===helpModal) closeHelp(); });
+
 document.addEventListener('keydown', e=>{
   if(e.key==='r' || e.key==='R'){
-    if(!settingsModal.classList.contains('open')) rotateSelection();
+    if(!settingsModal.classList.contains('open') && !helpModal.classList.contains('open')) rotateSelection();
     return;
   }
   if(e.key==='Escape'){
-    if(settingsModal.classList.contains('open')) closeSettings();
+    if(helpModal.classList.contains('open')) closeHelp();
+    else if(settingsModal.classList.contains('open')) closeSettings();
     else if(G.selected) cancelSelection();
   }
 });
@@ -1806,10 +2576,11 @@ function save(){
   if(resetInProgress) return;
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify({
     funds:G.funds, flux:G.flux, bp:G.bp, totalCompute:G.totalCompute,
-    conductorCap:G.conductorCap, gridLevel:G.gridLevel,
+    conductorCap:G.conductorCap, tiers:G.tiers, gridLevel:G.gridLevel,
     board:G.board, fluxFirsts:G.fluxFirsts,
     starterStock:G.starterStock, inventory:G.inventory,
     tutorialStep:G.tutorialStep, unlocked:G.unlocked, peakHeat:G.peakHeat,
+    burnoutCount:G.burnoutCount,
   })); }catch(e){}
 }
 function load(){
@@ -1817,23 +2588,49 @@ function load(){
     const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(!s) return false;
     Object.assign(G, {funds:s.funds, flux:s.flux, bp:s.bp, totalCompute:s.totalCompute,
       conductorCap:s.conductorCap||0.95, gridLevel:s.gridLevel||0,
+      tiers:Object.assign({battery:0,logic:0,resistor:0},s.tiers||{}),
       fluxFirsts:s.fluxFirsts||{}, starterStock:s.starterStock||{},
       inventory:s.inventory||{}, tutorialStep:s.tutorialStep||0,
-      unlocked:s.unlocked||{}, peakHeat:s.peakHeat||s.board?.heat||0});
+      unlocked:s.unlocked||{}, peakHeat:s.peakHeat||s.board?.heat||0,
+      burnoutCount:s.burnoutCount||0});
     if(s.board && s.board.cells){
       G.board=s.board;
-      if(G.board.maxHeat==null) G.board.maxHeat=100;
+      if(G.board.ambientTemperature==null) G.board.ambientTemperature=22;
+      const legacyTemperature=Math.max(G.board.ambientTemperature,Math.min(95,G.board.heat||G.board.ambientTemperature));
       const legacyWires=[];
+      const legacyHeatsinks=new Set();
       for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
         const cell=G.board.cells[idx(x,y)];
+        if(cell.comp==='heatsink'){
+          legacyHeatsinks.add(`${cell.anchorX??x},${cell.anchorY??y}`);
+          Object.assign(cell,{
+            wire:false,wireDirs:0,comp:null,on:true,rotation:0,anchorX:null,anchorY:null,
+            burned:false,temperature:G.board.ambientTemperature,heatsink:false,
+          });
+          continue;
+        }
         if(cell.wire && cell.wireDirs==null) legacyWires.push([x,y]);
         if(!cell.wire && cell.wireDirs==null) cell.wireDirs=0;
         if(cell.rotation==null) cell.rotation=0;
         if(cell.on==null) cell.on=true;
+        cell.burstUntil=0;
+        if(cell.burned==null) cell.burned=false;
+        if(cell.repairEndsAt) cell.burned=true;
+        delete cell.repairEndsAt;
+        if(cell.temperature==null) cell.temperature=legacyTemperature;
+        if(cell.heatsink==null) cell.heatsink=false;
         if(cell.anchorX==null && cell.comp){ cell.anchorX=x; cell.anchorY=y; }
         if(cell.anchorX==null){ cell.anchorX=null; cell.anchorY=null; }
         if(cell.comp && COMPONENTS[cell.comp]?.unlock) G.unlocked[cell.comp]=true;
       }
+      if(legacyHeatsinks.size){
+        G.inventory.heatsink=(G.inventory.heatsink||0)+legacyHeatsinks.size;
+      }
+      G.board.thermalVersion=3;
+      delete G.board.heat;
+      delete G.board.maxHeat;
+      delete G.board.heatCapacity;
+      delete G.board.passiveDissipation;
       const legacyMulti=[];
       for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
         const cell=G.board.cells[idx(x,y)];
@@ -1849,13 +2646,17 @@ function load(){
         let rotation=[0,1,2,3].find(r=>canPlaceComponent(x,y,name,r,[x,y]));
         if(rotation==null){
           G.inventory[name]=(G.inventory[name]||0)+1;
-          Object.assign(anchorCell,{comp:null,wireDirs:0,rotation:0,anchorX:null,anchorY:null});
+          Object.assign(anchorCell,{
+            comp:null,wireDirs:0,rotation:0,anchorX:null,anchorY:null,
+            burned:false,temperature:G.board.ambientTemperature,heatsink:false,
+          });
           continue;
         }
         anchorCell.rotation=rotation;
         for(const [cx,cy] of componentCellsAt(x,y,name,rotation)){
           Object.assign(G.board.cells[idx(cx,cy)],{
             comp:name,wire:false,wireDirs:0,on:anchorCell.on,rotation,anchorX:x,anchorY:y,
+            burned:Boolean(anchorCell.burned),temperature:anchorCell.temperature,heatsink:Boolean(anchorCell.heatsink),
           });
         }
       }
@@ -1874,9 +2675,21 @@ function load(){
         cell.wireDirs=mask;
       }
       for(const [name,count] of Object.entries(G.inventory)) if(count>0 && COMPONENTS[name]?.unlock) G.unlocked[name]=true;
+      const temperatures=[];
+      for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+        if(isComponentAnchor(x,y)) temperatures.push(G.board.cells[idx(x,y)].temperature);
+      }
+      G.hottestTemperature=temperatures.length ? Math.max(...temperatures) : G.board.ambientTemperature;
+      G.averageTemperature=temperatures.length
+        ? temperatures.reduce((sum,value)=>sum+value,0)/temperatures.length
+        : G.board.ambientTemperature;
+      G.heatState=heatStateAt(G.hottestTemperature).key;
     }
     return true;
-  }catch(e){ return false; }
+  }catch(e){
+    console.error('Save migration failed',e);
+    return false;
+  }
 }
 setInterval(save, 5000);
 window.addEventListener('beforeunload', save);
