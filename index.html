@@ -1116,16 +1116,16 @@ const COMPONENTS = {
     effect:'7 FLOPS · 요구 1.00A · 고발열', requirement:'PSU와 Clock 필요', tip:'한 칸당 출력이 높지만 전류 소비와 발열이 큽니다. 충분한 PSU 용량과 냉각 확보 필수.' },
   // ----- 저항 (분기 전류·출력·발열 조절) -----
   resistor: { name:'Resistor', icon:'🟫', color:'#8a5a2b', cost:15, vl:0, vr:1, ohm:4.0, base:0, requiresAmps:0, kind:'passive', family:'resistor',
-    resistorCurrentMult:0.82, resistorOutputMult:0.88, resistorHeatMult:0.70,
+    resistorCurrentMult:0.82, resistorOutputMult:0.88, resistorHeatMult:0.65,
     terminals:{ input:'W', output:'E' },
-    category:'안정화', role:'자신이 속한 분기의 발열을 ×0.70으로 낮춰 고전압 분기를 안정화합니다(출력은 ×0.88로 감소).',
-    effect:'분기 전류 ×0.82 · 출력 ×0.88 · 발열 ×0.70', requirement:'14V·16V 고전압 분기 권장', tip:'고전압은 출력보다 발열이 더 빨리 올라 냉각만으로 부족합니다. 저항을 넣으면 분기 발열을 직접 낮춰 100°C 고장 위험을 막습니다. 같은 분기에 여러 개 놓으면 중첩(최소 ×0.45).' },
+    category:'발열원 차단', role:'분기의 발열 생성 자체를 ×0.65로 낮춥니다. 방열판(방열 강화)과 곱연산으로 보완되어, 16V 극한 빌드는 둘 다 필요합니다(출력 ×0.88).',
+    effect:'분기 발열 ×0.65 · 출력 ×0.88 · 전류 ×0.82', requirement:'16V·고클럭 극한 분기 필수', tip:'방열판은 방열을 늘리고 저항은 발열 생성을 줄입니다. 16V+Overclock+Micro ALU처럼 방열판만으론 100°C를 못 막는 빌드에서 저항으로 생성을 먼저 깎아야 안전해집니다. 같은 분기에 여러 개 놓으면 중첩(최소 ×0.45).' },
   precision:{ name:'Precision Resistor', icon:'🟫', color:'#9c6a33', cost:55, unlockCost:220, vl:0, vr:1, ohm:4.0, base:0, requiresAmps:0, kind:'passive', family:'resistor',
-    resistorCurrentMult:0.88, resistorOutputMult:0.94, resistorHeatMult:0.76,
+    resistorCurrentMult:0.88, resistorOutputMult:0.94, resistorHeatMult:0.72,
     unlockFlops:900,
     terminals:{ input:'W', output:'E' },
-    category:'안정화', role:'일반 Resistor보다 출력 손실이 작고 발열 안정화가 효율적인 정밀 저항.',
-    effect:'분기 전류 ×0.88 · 출력 ×0.94 · 발열 ×0.76', requirement:'14V·16V 고전압 분기 권장', tip:'일반 Resistor보다 출력 손실이 6% 적어, 고전압 분기의 출력을 최대한 지키면서 발열을 안정화하는 데 유리.' },
+    category:'발열원 차단', role:'일반 Resistor보다 출력 손실이 작으면서 발열 생성을 ×0.72로 낮추는 정밀 저항.',
+    effect:'분기 발열 ×0.72 · 출력 ×0.94 · 전류 ×0.88', requirement:'16V·고클럭 극한 분기 권장', tip:'출력 손실이 6% 적어, 극한 분기의 출력을 최대한 지키면서 발열 생성을 깎는 데 유리.' },
   variable: { name:'Variable Resistor', icon:'🟫', color:'#b07d3a', cost:180, unlockCost:2500, vl:0, vr:1, ohm:4.0, base:0, requiresAmps:0, kind:'passive', family:'resistor',
     variable:true, unlockFlops:10000,
     terminals:{ input:'W', output:'E' },
@@ -1201,18 +1201,19 @@ const COMPONENTS = {
 
 // Variable Resistor의 2/4/8Ω은 참고 표시값이며 실제 효과는 아래 배율만 사용한다.
 const VR_MODES = {
-  low:  { label:'Low',  ohm:2.0, currentMult:0.94, outputMult:0.97, heatMult:0.88, hint:'전류↑ 출력↑ 발열↑' },
-  mid:  { label:'Mid',  ohm:4.0, currentMult:0.82, outputMult:0.88, heatMult:0.70, hint:'표준 저항 · 출력↓ 발열↓' },
-  high: { label:'High', ohm:8.0, currentMult:0.65, outputMult:0.72, heatMult:0.48, hint:'전류↓ 출력↓ 발열↓↓' },
+  low:  { label:'Low',  ohm:2.0, currentMult:0.94, outputMult:0.97, heatMult:0.82, hint:'전류↑ 출력↑ 발열↑' },
+  mid:  { label:'Mid',  ohm:4.0, currentMult:0.82, outputMult:0.88, heatMult:0.65, hint:'표준 저항 · 출력↓ 발열↓' },
+  high: { label:'High', ohm:8.0, currentMult:0.65, outputMult:0.72, heatMult:0.45, hint:'전류↓ 출력↓ 발열↓↓' },
 };
 
 // 전압 오버클럭 모드 (GDD 7.5)
 const VOLTAGE_MODES = {
   '12v': { label:'12V 안정', volt:12, outputMult:1.00, currentMult:1.00, heatMult:1.00 },
-  // 고전압은 출력보다 발열이 더 빠르게 오른다(발열/출력 > 1) → 냉각만으로 부족,
-  // 저항으로 분기 발열을 낮춰 안정화해야 한다(방향 5). 확률 고장이 방치 페널티를 담당.
+  // 고전압은 출력보다 발열이 더 빠르게 오른다(발열/출력 > 1) → 냉각만으로 부족.
+  // 16V는 방열판만으론 100°C를 못 막아, 저항으로 발열 생성을 먼저 깎아야 안전(B안 재보정 2026-06-21).
+  // 14V는 방열판만으로 버틸 수 있는 중간 티어. 확률 고장이 방치 페널티를 담당.
   '14v': { label:'14V 성능', volt:14, outputMult:1.25, currentMult:1.20, heatMult:1.35, unlockFlops:5000, unlockCost:1200 },
-  '16v': { label:'16V 극한', volt:16, outputMult:1.55, currentMult:1.45, heatMult:1.65, unlockFlops:1000000, unlockCost:8000 },
+  '16v': { label:'16V 극한', volt:16, outputMult:1.55, currentMult:1.45, heatMult:2.00, unlockFlops:1000000, unlockCost:8000 },
 };
 const TAPEOUT_TARGET_COMPUTE = 7000000;
 const CHIP_COMPRESSION_FLUX_COST = 12;
@@ -1863,7 +1864,9 @@ function resistorSelfHeat(cell, branch, clockMod=1, vm=null){
   const resistorCount = (branch.components||[]).filter(c=>COMPONENTS[c[2]]?.family==='resistor').length || 1;
   // 통전에 따른 최소 발열 (compute가 거의 없는 분기에서도 약간 따뜻하게)
   const baseFloor = (branch.current||0)*vm.heatMult*HEAT_SCALE*0.5;
-  return (removed/resistorCount)*0.8 + baseFloor;
+  // 흡수 계수 0.35: 저항은 따뜻해지지만(요구사항 5) 보호 대상 compute보다 시원해 고장점이 되지 않음.
+  // 나머지 제거 열은 저항 표면으로 방산되는 것으로 추상화(B안: 저항은 발열원 차단기).
+  return (removed/resistorCount)*0.35 + baseFloor;
 }
 
 function closedAdjacency(closedNodeKeys){
