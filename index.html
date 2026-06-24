@@ -144,6 +144,12 @@
   }
   .item button:disabled { background: #2a3138; color: #5a646c; cursor: not-allowed; }
   .item.selected { outline: 1px solid var(--accent); }
+  .shop-view-toggle, .shop-group-chip {
+    background: var(--panel-2); color: var(--text); border: 1px solid #2a3138;
+    border-radius: 5px; padding: 4px 8px; cursor: pointer; font-size: 11px;
+  }
+  .shop-view-toggle.active { border-color: var(--accent); color: var(--accent); }
+  .shop-group-chip.active { background: var(--accent); color: #042b38; border-color: var(--accent); font-weight: 600; }
 
   #toolbarOverlay {
     position: absolute; top: 14px; right: 14px; z-index: 10;
@@ -208,6 +214,19 @@
   }
   .modal-header h2 { margin: 0; font-size: 16px; letter-spacing: 0; }
   .modal-body { padding: 16px; }
+  .chip-inv-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px;
+  }
+  .chip-inv-card {
+    background: var(--panel-2, #1a2128); border: 1px solid #2a3138; border-radius: 6px;
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .chip-inv-card .ci-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+  .chip-inv-card .ci-meta { color: var(--muted); font-size: 11px; line-height: 1.4; }
+  .chip-inv-card button { margin-top: 2px; }
+  .chip-inv-badge { font-size: 10px; padding: 0 4px; border-radius: 3px; }
+  .chip-inv-filter { font-size: 11px; padding: 3px 9px; border-radius: 12px; background: var(--panel-2, #1a2128); border: 1px solid #2a3138; color: var(--text); cursor: pointer; }
+  .chip-inv-filter.active { border-color: #7f96ff; color: #cfd8ff; }
   .settings-row {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     padding: 12px 0;
@@ -330,6 +349,15 @@
     background: var(--accent); border-color: var(--accent); color: #042b38; font-weight: 700;
   }
   .blueprint-actions button.danger { color: #ff8b8b; border-color: #6d3535; }
+  /* Module Lab 버튼을 Blueprints 탭(.blueprint-actions)과 동일 스타일로 통일 */
+  #tabModuleLab button {
+    padding: 5px 9px; border: 1px solid #34424c; border-radius: 4px;
+    background: #202b33; color: var(--text); cursor: pointer; font-size: 11px;
+  }
+  #tabModuleLab button.primary {
+    background: var(--accent); border-color: var(--accent); color: #042b38; font-weight: 700;
+  }
+  #tabModuleLab button:disabled { background: #2a3138; border-color: #2a3138; color: #5a646c; cursor: not-allowed; }
   .blueprint-save-row { display: flex; gap: 6px; margin-top: 8px; }
   .blueprint-save-row input {
     min-width: 0; flex: 1; padding: 6px 7px; border: 1px solid #34424c;
@@ -375,7 +403,7 @@
     <div id="gridArea">
       <div id="boardWrap">
         <div id="boardTop">
-          <div id="hint">드래그 방향: 배선 연결 · 클릭: 배치 · R: 회전 · 분기: Junction · 우클릭: 삭제</div>
+          <div id="hint">드래그 방향: 배선 연결 · 클릭: 배치 · R: 회전 · 분기: 전선 교차 · 우클릭: 삭제</div>
           <div id="selectionStatus">
             <span id="selectedIcon"></span>
             <strong id="selectedName"></strong>
@@ -420,7 +448,9 @@
       <div class="tabs">
         <button data-tab="shop" class="active">Shop</button>
         <button data-tab="upgrades">Upgrades</button>
+        <button data-tab="bpupgrade">BP 강화</button>
         <button data-tab="blueprints">Blueprints</button>
+        <button data-tab="modulelab">Module Lab</button>
         <button data-tab="stats">Stats</button>
       </div>
       <div class="tabcontent" id="tabShop">
@@ -429,18 +459,23 @@
           <div class="guide-title" id="tutorialTitle">무료 부품 받기</div>
           <div class="guide-copy" id="tutorialCopy">무료 버튼을 눌러 기본 부품을 재고에 넣으세요.</div>
           <div class="guide-progress"><div id="tutorialProgressBar"></div></div>
+          <div id="phase2Checklist"></div>
           <div id="circuitIssues"></div>
           <div id="challengePanel"></div>
         </div>
         <h3>배선 구매</h3>
         <div id="wireShop"></div>
-        <h3>Phase 1 부품</h3>
+        <h3>부품 상점</h3>
+        <div id="shopViewControls"></div>
         <div id="shopList"></div>
+        <div id="ipShopSection" style="display:none"><h3>커스텀 IP</h3><div id="ipShop"></div></div>
         <h3>그리드</h3>
         <div id="gridUpgrade"></div>
       </div>
       <div class="tabcontent" id="tabUpgrades" style="display:none"></div>
+      <div class="tabcontent" id="tabBpUpgrade" style="display:none"></div>
       <div class="tabcontent" id="tabBlueprints" style="display:none"></div>
+      <div class="tabcontent" id="tabModuleLab" style="display:none"></div>
       <div class="tabcontent" id="tabStats" style="display:none"></div>
     </aside>
   </main>
@@ -504,6 +539,83 @@
       요구 Amps = Clock 0.10A + Logic Cell 0.50A × 개수 + LED 0.10A + …<br>
       이 합계가 PSU 공급 Amps 이하여야 공급률 100%가 유지됩니다.</p>
       <p style="margin:8px 0 0;color:var(--muted)"><strong>핵심 5가지:</strong> 전압↑=빠름+뜨거움 / 병렬분기↑=전류필요↑ / PSU 부족=출력저하 / Resistor=분기안정화 / 냉각=오래지속</p>
+
+      <hr style="border:none;border-top:1px solid #233; margin:18px 0 12px">
+      <h3 style="margin:0 0 4px;color:#b9c7ff">📈 게임 진행 가이드</h3>
+      <p style="margin:0 0 10px;color:var(--muted);font-size:12px">성장 사다리: <strong>기본 회로 → 효율·안정화 → Blueprint → Chip 압축 → Tape-out → 공정 발전 → Module → Gate → ALU → CPU Core …</strong></p>
+      <!-- GUIDE_SECTIONS_START : 새 기능을 구현할 때마다 이 아래에 단락을 추가한다 -->
+
+      <p style="margin:8px 0 6px"><strong>🧩 Phase 2 진입 조건</strong><br>
+      아래 <strong>5가지를 모두 보드에 적용</strong>하면 Phase 2가 열립니다(보유가 아니라 실제 배치/사용 기준). 진행 상황은 Shop 탭 상단에 ✓/✗로 실시간 표시됩니다.<br>
+      ① 16×16 보드 확장 · ② 12.5A↑ PSU(150W급) 배치 · ③ Fast/Overclocked Clock 배치 · ④ 12.5A↑ Fuse 배치 · ⑤ OFC↑ 배선 사용<br>
+      진입하면 Capacitor·Diode·Transistor·Cooling Fan 설계가 Upgrades에 열립니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🔁 Tape-out (런 리셋·성장)</strong><br>
+      누적 7M FLOPS에서 Tape-out하면 BP를 얻고 런이 초기화됩니다. 실행 전 모달에 <strong>예상 등급 D/C/B/A/S</strong>와 점수(Compute·효율·열 안정성·밀도·Blueprint)가 표시됩니다. 등급이 높을수록 더 많은 BP와 <strong>공정 경험치</strong>를 얻습니다. Flux·BP·Blueprint·등록 IP·공정 세대·이월 Chip은 런을 넘어 유지됩니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🏭 공정 세대 (processNode)</strong><br>
+      Tape-out 등급에 따라 공정 경험치(D1·C2·B3·A5·S8)가 쌓여 <strong>PCB Prototype → SSI → MSI → LSI → VLSI → 180nm … 3nm</strong>으로 발전합니다. 세대가 오르면 Chip·IP 압축 시 <strong>출력 감쇠가 완화되고 발열이 줄어듭니다</strong>. 또한 일부 상위 부품(Gate 등)의 해금 조건이 됩니다. 현황은 Stats 탭에서 확인하세요.</p>
+
+      <p style="margin:8px 0 6px"><strong>📐 Blueprint (설계 자산)</strong><br>
+      고장 없는 유효 회로를 Blueprint로 저장하면 자동으로 <strong>분석·등급</strong>(Crude→Working→Stable→Efficient→Compact→Production)이 매겨집니다. 면적당 출력·최고 온도·Wire Efficiency가 기준입니다. Blueprint는 수동 가이드/Auto-Solderer 시공, Chip 압축, Module 인증, IP 등록의 재료가 됩니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🗜 Chip 압축 & 품질</strong><br>
+      Blueprint를 ✦Flux로 1×1 <strong>Compressed Chip</strong>으로 압축합니다. 공간을 아끼는 대신 출력 60%·발열 100%(한 칸 집중)라 냉각이 거의 필수입니다. 원본 효율·온도·밀도로 <strong>품질</strong>(Crude→Stable→Efficient→Compact→High-Speed→Golden Sample)이 결정되며, 공정 세대가 높을수록 출력 보존이 좋아집니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🧩 Module Lab — Module 인증</strong><br>
+      저장된 Blueprint를 역할별 Module로 인증합니다. <strong>Logic</strong>(Compute·출력50·90°C), <strong>Clock</strong>(Clock·공급률95%), <strong>Power</strong>(PSU·Fuse), <strong>Cooling</strong>(Heatsink/Fan·70°C), <strong>Gate</strong>(Gate 2개·90°C), <strong>Register</strong>(Register/Latch·공급률90%). 인증 Module은 상위 부품 해금과 ALU/CPU 제작의 전제 조건입니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🔷 IP 등록 (영구 부품)</strong><br>
+      Tape-out <strong>B등급 이상</strong>에 도달하면 우수 Blueprint(Stable 이상·면적 16칸 이하)를 Module Lab에서 <strong>커스텀 IP</strong>로 등록할 수 있습니다. 등록한 IP는 Shop의 [커스텀 IP]에서 일반 부품처럼 반복 구매·배치되며, 원본 Blueprint를 삭제해도 유지됩니다(슬롯 4개).</p>
+
+      <p style="margin:8px 0 6px"><strong>🔢 Gate · Register 부품</strong><br>
+      <strong>Gate</strong>(NAND/NOR/XOR/Gate Array)는 저출력 Compute지만 서로 다른 종류를 섞으면 <strong>다양성 보너스</strong>(×1.05~1.20)를 줍니다. <strong>Register/Memory</strong>(Latch/Flip-Flop/Register)는 직접 출력이 없고(유효 회로 필수 아님) ALU/CPU 인증에 쓰입니다. 해금에는 공정 세대 + 인증 Module + 누적 FLOPS 조건이 필요하며, 잠긴 이유는 Upgrades 탭에서 ✓/✗로 표시됩니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🧮 ALU 제작</strong><br>
+      Module Lab의 ALU 섹션에서 <strong>Gate 2개+Register+Clock·출력 500↑·공급률 90%·90°C↓·효율 85%↑</strong> 회로를 ALU Module로 인증합니다. 인증 후 <strong>ALU Chip</strong>(✦18, 출력 보존 ×1.45)을 만들면 CPU Core의 재료가 됩니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🖥 CPU Core 제작</strong><br>
+      ALU·Register·Clock·Power Module을 모두 인증하고, <strong>총 출력 2.5k↑·공급률 95%·85°C↓</strong> 회로를 CPU Core로 인증합니다. <strong>CPU Core Chip</strong>(✦30, 출력 보존 ×2.0)은 현재 최종 고성능 부품입니다. ALU Chip을 회로에 넣으면 출력을 쉽게 끌어올릴 수 있습니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>📦 CPU 지원 부품 — 배치가 중요해진다</strong><br>
+      · <strong>Cache(L1/L2):</strong> 가까운 <strong>CPU/ALU Chip</strong>의 출력을 올립니다. 맨해튼 거리 1~2칸=+30%, 3~5칸=+21%, 6칸+=+12%. 칩 옆에 붙여 두세요.<br>
+      · <strong>VRM:</strong> 보드에 VRM이 <strong>없으면 CPU Core Chip 출력이 ×0.8로 제한</strong>됩니다. CPU 칩을 쓰면 VRM을 함께 배치하세요.<br>
+      · <strong>Clock Tree Buffer:</strong> 서로 다른 주파수 Clock을 섞을 때 생기는 동기화 손실(×0.95)을 제거합니다.<br>
+      해금에는 공정 세대(MSI~LSI)와 Power/Register/Clock Module 인증이 필요합니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🗂 탭 구성 안내</strong><br>
+      · <strong>Upgrades 탭:</strong> 이번 런에서 자금으로 사는 해금(부품 설계·배선 등급·전압 오버클럭). 부품은 Shop과 같은 계열 그룹으로 묶여 보입니다.<br>
+      · <strong>BP 강화 탭:</strong> Tape-out으로 얻은 <strong>BP</strong>로 사는 <strong>영구 강화</strong>(런을 넘어 유지). 이번 런 한정인 Upgrades와 분리했습니다.<br>
+      · <strong>Blueprints 탭 · Chip 인벤토리:</strong> 칩이 많으면 [🔍 한눈에 보기] 버튼으로 그리드 창을 열어 CPU/ALU/일반 필터로 한눈에 찾고 바로 배치할 수 있습니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>❄ 냉각: 방열판 vs 냉각팬</strong><br>
+      · <strong>Heatsink:</strong> 부품 1칸 위에 장착하는 수동 방열판. 전력이 필요 없고 통전 여부와 무관하게 항상 식힙니다.<br>
+      · <strong>Cooling Fan:</strong> 부품 위에 <strong>2×2로 덮어 부착</strong>하는 면적 냉각기입니다. 덮은 4칸 중 <strong>통전 중인 분기</strong>가 있으면 회전하며 그 영역 전체를 한꺼번에, 방열판보다 강하게 식힙니다. 공급률이 높을수록 빠르게 돌고 더 강하게 냉각하며, 전력이 없으면 멈춥니다(날개 회색=정지). 칩처럼 발열이 몰리는 구역에 올려 두세요.<br>
+      · <strong>중첩 가능:</strong> 같은 부품에 방열판과 팬을 함께 부착하면 냉각이 합산됩니다. 팬은 선택 후 영역 클릭으로 부착하고, 덮인 칸을 다시 클릭(또는 삭제 툴)하면 회수됩니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🔀 배선 분기 (Junction 폐지)</strong><br>
+      이제 <strong>전선만으로 3방향 이상 갈라지는 분기</strong>를 만들 수 있습니다. 전선이 T자·십자로 만나는 칸은 자동으로 전기적 분기점이 되어 병렬 회로를 구성합니다. 별도의 Junction 부품은 더 이상 필요 없으며, 기존에 놓았던 Junction은 자동으로 4방향 전선으로 바뀝니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🧭 극성 단자 편집 (모든 극성 부품)</strong><br>
+      극성(+/−)이 있는 <strong>모든 1×1 부품</strong>(커넥터·Clock·Logic·Gate·Register·Diode·Capacitor·Transistor·VRM·레귤레이터·Chip 등)은 <strong>선택 도구로 클릭</strong>해 +/− 단자가 놓일 면을 바꿀 수 있습니다. 회로 배치에 맞춰 단자 방향을 자유롭게 돌려 연결하세요.</p>
+
+      <p style="margin:8px 0 6px"><strong>🏅 인증 등급 (D~S)</strong><br>
+      ALU·CPU 인증은 통과/실패만이 아니라 <strong>최소 조건을 얼마나 넘겼는지</strong>로 D~S 등급이 매겨집니다. 채점은 출력 마진·공급 여유·열 여유·설계 다양성 네 축을 봅니다. 등급이 높을수록 만드는 Chip의 <strong>출력 배율</strong>이 커지며(ALU ×1.30~1.70 · CPU ×1.70~2.40, 모두 B등급이 기존 기준값), 첫 A/S 인증에는 ✦ Flux 보너스가 붙습니다. Module Lab의 카드에서 예상 등급과 마진 바를 미리 확인하세요.</p>
+
+      <p style="margin:8px 0 6px"><strong>🧭 다음 목표 패널</strong><br>
+      Phase 2 이후 좌측 상단 안내 패널은 <strong>전 시스템을 살펴 지금 할 최선의 행동 1개</strong>를 제시합니다. 영구 고장·과열 경고, 인증 가능한 Blueprint, 등록 가능한 IP, 해금 가능한 설계, Tape-out 진척을 우선순위 순으로 안내하며, 해당 탭으로 바로 가는 버튼을 제공합니다. 인증 조건이나 회로 진단이 미충족이면 "→ 처방" 힌트로 고치는 방법을 함께 보여줍니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>🛒 상점 사용 팁</strong><br>
+      <strong>배선 구매</strong> 목록에서 배선 줄을 <strong>클릭하면 그 등급이 바로 선택</strong>되어 드래그로 그릴 수 있습니다(● 사용 중 표시). <strong>부품 상점</strong> 상단의 "📄 전체 목록 / 📑 분류 탭" 버튼으로 보기 방식을 바꿀 수 있습니다 — 부품이 많아지면 분류 탭으로 전환해 계열별로 나눠 보면 스크롤을 줄일 수 있습니다.</p>
+
+      <p style="margin:8px 0 6px"><strong>❄ 칩 발열 (완화)</strong><br>
+      칩은 원 회로 발열을 한 칸에 응축하지만 <strong>70%만</strong> 전달하도록 완화됐습니다(이전 100%). 또한 <strong>인증 등급(ALU/CPU D~S)·칩 품질(Crude~Golden)이 높을수록 발열이 더 낮아집니다</strong> — 잘 설계할수록 시원한 칩이 됩니다. Heatsink·Fan의 방열 성능도 상향되어, <strong>적정 설계 + 충분한 냉각이면 칩도 안정적으로 가동</strong>됩니다. 다만 무냉각이거나 Overclock·16V로 과하게 밀어붙이면 여전히 녹으니 냉각 투자와 클럭/전압 균형이 중요합니다. (이미 만들어 둔 칩은 냉각 상향 혜택은 즉시 받지만, 발열 감소分은 <strong>다시 생성</strong>해야 적용됩니다.)</p>
+      <p style="margin:8px 0 6px"><strong>▥ 보드 히트싱크</strong><br>
+      Heatsink는 부품 위에 장착하는 것 외에 <strong>빈 보드 칸에도 깔 수 있습니다</strong>. 빈 칸의 보드 히트싱크는 <strong>히트파이프가 보낸 열을 대기로 내보내는 방출판</strong>이며 <strong>자체 온도</strong>를 가집니다(마우스를 올려 확인). 인접한 보드 히트싱크끼리는 경계가 사라져 <strong>하나의 큰 방열판</strong>이 되어 더 많은 열을 받아냅니다(드래그로 넓게 깔기). 그 위에 <strong>팬</strong>을 얹으면 — 파이프로 연결된 부품이 작동 중일 때 — 팬이 돌며 방열이 크게 늘어납니다. 지우개로 회수합니다. (※ 예전의 '인접 부품 직접 냉각'은 제거되었고, 이제 방출판은 반드시 히트파이프로 부품 히트싱크와 이어야 효과가 있습니다.)</p>
+
+      <p style="margin:8px 0 6px"><strong>┃ 히트파이프 (열 배관 · 레이어 2 오버레이)</strong><br>
+      히트파이프는 <strong>배선처럼 드래그해 그리며, 그은 방향으로만 이어집니다</strong>. 부품(1층)보다 한 층 위(2층)라 <strong>부품·히트싱크 위를 지나갈 수 있습니다</strong>(레이어 구성: 부품 &lt; 부착 히트싱크·히트파이프 &lt; 팬). 부품에 부착한 <strong>Heatsink 위에 파이프를 올리면 그 부품이 열원</strong>, <strong>보드 히트싱크 위에 올리면 방출판</strong>이 되어 둘을 이으면 열이 방출판으로 흘러 식습니다. 냉각 세기는 현실적인 전도 모델을 따릅니다 — <strong>등급이 높을수록(굵을수록) 전달 효율↑, 파이프를 많이 깔수록 전달량↑, 방출판이 크고 팬이 있을수록 더 많이 받아냅니다</strong>. 방출판이 포화되면 전달도 막히니 방열(큰 plate·팬)도 함께 키우세요. 지우개로 회수합니다.</p>
+      <!-- GUIDE_SECTIONS_END -->
     </div>
   </section>
 </div>
@@ -570,6 +682,19 @@
         <button id="terminalEditorCancel" type="button">취소</button>
         <button class="primary" id="terminalEditorSave" type="button">적용</button>
       </div>
+    </div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="chipInventoryModal" aria-hidden="true">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="chipInventoryTitle" style="max-width:760px;width:min(760px,100%)">
+    <div class="modal-header">
+      <h2 id="chipInventoryTitle">Compressed Chip 인벤토리</h2>
+      <button class="icon-button" id="chipInventoryClose" type="button" aria-label="닫기" title="닫기">×</button>
+    </div>
+    <div class="modal-body" style="max-height:74vh;overflow:auto">
+      <div id="chipInventoryFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+      <div id="chipInventoryGrid" class="chip-inv-grid"></div>
     </div>
   </section>
 </div>
@@ -695,6 +820,24 @@ const CircuitForgeCore = (() => {
     inputDistance!=null&&outputDistance!=null&&inputDistance>outputDistance;
   const fanCoolingCoefficient=(supplyRatioValue,base=0.012)=>
     base*clamp(supplyRatioValue,0,1);
+  // 2×2 부착팬의 회전·냉각 세기 = 덮은 통전 분기들의 공급률로 만든 계수의 최댓값.
+  // 통전 분기가 하나도 없으면(전부 비통전) 0 → 팬 정지·냉각 없음(전력 연동).
+  const fanSpinStrength=(supplyRatios=[],base=0.012)=>{
+    let best=0;
+    for(const ratio of supplyRatios){
+      if(ratio==null) continue;
+      const coeff=fanCoolingCoefficient(ratio,base);
+      if(coeff>best) best=coeff;
+    }
+    return best;
+  };
+  // 부착물 방열계수(passive 제외). Heatsink 기본값 + 팬 세기를 더하되,
+  // 둘이 함께 있으면 팬 바람이 핀 방열을 끌어올린다는 의미로 시너지 배율을 곱한다.
+  const sinkDissipationCoefficient=(heatsinkOn,fanStrength=0,heatsinkBase=0.02,synergy=1.6)=>{
+    let coeff=(heatsinkOn?heatsinkBase:0)+Math.max(0,fanStrength);
+    if(heatsinkOn && fanStrength>0) coeff*=synergy;
+    return coeff;
+  };
   const phase2Ready=conditions=>
     ['grid','psu','clock','fuse','wire'].every(key=>Boolean(conditions?.[key]));
   function challengeProgress(challenge={},metrics={}){
@@ -772,7 +915,7 @@ const CircuitForgeCore = (() => {
         stock.fuse=1;
       }else{
         stock.logic++;
-        stock.junction=1;
+        stock.led=1;
       }
     }
     if(chipComponent) stock[chipComponent]=(stock[chipComponent]||0)+1;
@@ -804,6 +947,8 @@ const CircuitForgeCore = (() => {
       requiresAmps:Math.max(.05,Number(chip.requiresAmps)||.5),
       heat:Math.max(.01,Number(chip.heat)||.5),
       depth:Math.max(1,Math.floor(Number(chip.depth)||1)),
+      quality:typeof chip.quality==='string'?chip.quality:'crude',
+      architectureRole:typeof chip.architectureRole==='string'?chip.architectureRole:'none',
       sourceBlueprintId:chip.sourceBlueprintId||chip.blueprintId||null,
       createdAt:Number(chip.createdAt)||Date.now(),
     };
@@ -842,14 +987,18 @@ const CircuitForgeCore = (() => {
       nextChipId:Math.max(1,Math.floor(Number(save.nextChipId)||1)),
     };
   }
+  // 칩 발열 농도: 원 회로 발열을 한 칸에 응축하되 70%만 전달(나머지는 압축 과정에서 분산된 것으로 추상화).
+  const CHIP_HEAT_CONCENTRATION=0.7;
   function compressedChipStats({
     sourceRate=0,sourceDemandAmps=0,sourceHeat=0,sourceDepth=0,
+    processOutputMult=1,processHeatMult=1,
   }={}){
     return {
-      // 밀집 연산: 공간을 1칸으로 줄이는 대가로 출력 40% 희생(×0.6) + 회로 발열을 한 칸에 집중(×1.0).
-      base:Math.max(.1,sourceRate*.6),
+      // 밀집 연산: 공간을 1칸으로 줄이는 대가로 출력 40% 희생(×0.6) + 회로 발열을 한 칸에 집중(×0.7).
+      // 공정 세대(processNode)가 발전하면 출력 감쇠가 완화되고 발열이 줄어든다(기본 배율 1이면 기존 동작).
+      base:Math.max(.1,sourceRate*.6*processOutputMult),
       requiresAmps:Math.max(.1,sourceDemandAmps*.8),
-      heat:Math.max(.05,sourceHeat*1.0),
+      heat:Math.max(.05,sourceHeat*CHIP_HEAT_CONCENTRATION*processHeatMult),
       depth:Math.max(1,Math.floor(sourceDepth)+1),
     };
   }
@@ -1039,18 +1188,394 @@ const CircuitForgeCore = (() => {
       funds:compute*economyRate,
     };
   }
+  // ---- 1차 업데이트: Tape-out 등급 (개선점 P1-1) -------------------------
+  // 실행 전 모달에 예상 등급/점수를 보여주기 위한 순수 점수 계산. 상한을 명시해
+  // 경계값 테스트가 가능하다. architectureScore는 CPU/GPU 단계에서 채운다.
+  const TAPEOUT_GRADE_LABELS={
+    D:'Prototype',C:'Stable Die',B:'Efficient Chip',
+    A:'Commercial Grade',S:'Breakthrough',
+  };
+  const TAPEOUT_GRADE_RANK={D:0,C:1,B:2,A:3,S:4};
+  function tapeoutScore({
+    totalCompute=0,target=7000000,
+    avgEfficiency=0,maxEfficiency=0,
+    hottestTemp=22,burnoutCount=0,
+    blueprintCount=0,chipCount=0,
+    densityPerCell=0,maxChipDepth=0,
+  }={}){
+    const ratio=target>0?totalCompute/target:0;
+    const computeScore=clamp(Math.log2(Math.max(1,ratio))*15,0,60);
+    const efficiencyScore=clamp(avgEfficiency*30+(maxEfficiency>=0.95?10:0),0,40);
+    const thermalScore=clamp(
+      (hottestTemp<=85?25:hottestTemp<=100?12:0)-Math.max(0,burnoutCount)*5,0,25);
+    const densityScore=clamp(densityPerCell*8+Math.max(0,maxChipDepth)*5,0,25);
+    const blueprintScore=clamp(blueprintCount*3+chipCount*3,0,15);
+    const architectureScore=0;
+    const total=computeScore+efficiencyScore+thermalScore
+      +densityScore+blueprintScore+architectureScore;
+    return {total,computeScore,efficiencyScore,thermalScore,
+      densityScore,blueprintScore,architectureScore};
+  }
+  function tapeoutGrade(total=0){
+    if(total>=120) return 'S';
+    if(total>=95) return 'A';
+    if(total>=70) return 'B';
+    if(total>=45) return 'C';
+    return 'D';
+  }
+  function higherTapeoutGrade(a,b){
+    const ra=TAPEOUT_GRADE_RANK[a]??-1,rb=TAPEOUT_GRADE_RANK[b]??-1;
+    return rb>ra?b:a;
+  }
+  // ---- 1차 업데이트: 공정 세대 processNode (개선점 P1-2) ------------------
+  const PROCESS_NODES=[
+    {level:0,name:'PCB Prototype',xpToNext:3},
+    {level:1,name:'SSI Logic',xpToNext:4},
+    {level:2,name:'MSI Logic',xpToNext:5},
+    {level:3,name:'LSI Logic',xpToNext:6},
+    {level:4,name:'VLSI',xpToNext:7},
+    {level:5,name:'180nm',xpToNext:8},
+    {level:6,name:'90nm',xpToNext:9},
+    {level:7,name:'45nm',xpToNext:10},
+    {level:8,name:'14nm',xpToNext:12},
+    {level:9,name:'7nm',xpToNext:14},
+    {level:10,name:'3nm',xpToNext:Infinity},
+  ];
+  const PROCESS_MAX_LEVEL=PROCESS_NODES.length-1;
+  function processXpGain(grade){ return {D:1,C:2,B:3,A:5,S:8}[grade]||0; }
+  function applyProcessXp(node={},grade='D'){
+    const fromLevel=clamp(Math.floor(Number(node.level)||0),0,PROCESS_MAX_LEVEL);
+    let level=fromLevel;
+    let xp=Math.max(0,Number(node.xp)||0);
+    const gained=processXpGain(grade);
+    xp+=gained;
+    while(level<PROCESS_MAX_LEVEL && xp>=PROCESS_NODES[level].xpToNext){
+      xp-=PROCESS_NODES[level].xpToNext;
+      level++;
+    }
+    if(level>=PROCESS_MAX_LEVEL) xp=0;
+    return {level,xp,gained,fromLevel,leveledUp:level-fromLevel};
+  }
+  function processNodeEffects(level=0){
+    const lv=clamp(Math.floor(Number(level)||0),0,PROCESS_MAX_LEVEL);
+    return {
+      level:lv,
+      name:PROCESS_NODES[lv].name,
+      chipOutputMult:1+lv*0.03,
+      chipHeatMult:Math.max(0.6,1-lv*0.02),
+    };
+  }
+  // ---- 1차 업데이트: Blueprint 분석/등급 (개선점 P2-1) -------------------
+  const BLUEPRINT_GRADE_LABELS={
+    crude:'Crude',working:'Working',stable:'Stable',
+    efficient:'Efficient',compact:'Compact',production:'Production Ready',
+  };
+  function blueprintGrade({
+    wireEfficiency=0,maxTemp=22,outputPerCell=0,hadFault=false,
+  }={}){
+    if(hadFault) return 'crude';
+    if(wireEfficiency>=0.96&&maxTemp<=80&&outputPerCell>=8) return 'production';
+    if(wireEfficiency>=0.92&&maxTemp<=85) return 'compact';
+    if(wireEfficiency>=0.88&&maxTemp<=90) return 'efficient';
+    if(wireEfficiency>=0.80) return 'stable';
+    return 'working';
+  }
+  const ROLE_GUESS_LABELS={
+    basic_compute:'Basic Compute Module',
+    clock_module:'Clock Module',
+    power_stabilizer:'Power Stabilizer',
+    cooling_module:'Cooling Module',
+    unknown:'미분류',
+  };
+  function roleGuessFromCounts(counts={}){
+    const c=counts||{};
+    // Compute가 핵심이면 연산 모듈로 본다. 그 외엔 가장 비중 큰 보조 계열로 추정.
+    if((c.compute||0)>0) return 'basic_compute';
+    const support=[
+      ['clock_module',c.clock||0],
+      ['power_stabilizer',(c.power||0)+(c.storage||0)],
+      ['cooling_module',(c.cooling||0)+(c.thermal||0)],
+    ].sort((a,b)=>b[1]-a[1]);
+    return support[0][1]>0?support[0][0]:'unknown';
+  }
+  // ---- 1차 업데이트: Chip 품질 (개선점 P1-4) -----------------------------
+  const CHIP_QUALITY_LABELS={
+    crude:'Crude',stable:'Stable',efficient:'Efficient',
+    compact:'Compact',highspeed:'High-Speed',golden:'Golden Sample',
+  };
+  const CHIP_QUALITY_RANK={crude:0,stable:1,efficient:2,compact:3,highspeed:4,golden:5};
+  function chipQuality({
+    blueprintGrade:bpGrade='working',wireEfficiency=0,maxTemp=22,
+    outputPerCell=0,depth=1,hadFault=false,
+  }={}){
+    if(hadFault) return 'crude';
+    if(bpGrade==='production'&&wireEfficiency>=0.97&&maxTemp<=75&&depth<=1) return 'golden';
+    if(outputPerCell>=12&&maxTemp<=85) return 'highspeed';
+    if(depth<=1&&wireEfficiency>=0.92) return 'compact';
+    if(wireEfficiency>=0.90) return 'efficient';
+    if(maxTemp<=85) return 'stable';
+    return 'crude';
+  }
+  // 칩 발열 감소: 인증 등급/품질이 높을수록 발열 배율↓(잘 설계할수록 시원).
+  const CERT_GRADE_HEAT_FACTOR={D:1.0,C:0.92,B:0.85,A:0.78,S:0.70};
+  function certGradeHeatFactor(grade='B'){
+    return CERT_GRADE_HEAT_FACTOR[grade]??CERT_GRADE_HEAT_FACTOR.B;
+  }
+  const CHIP_QUALITY_HEAT_FACTOR={crude:1.0,stable:0.94,efficient:0.88,compact:0.82,highspeed:0.76,golden:0.70};
+  function chipQualityHeatFactor(quality='crude'){
+    return CHIP_QUALITY_HEAT_FACTOR[quality]??CHIP_QUALITY_HEAT_FACTOR.crude;
+  }
+  // ---- 2차 업데이트: Module 인증 (개선점 P2-2, 작업5) --------------------
+  // Blueprint를 Logic/Clock/Power/Cooling Module로 인증하기 위한 조건 판정.
+  // 조건만 검사하며 아직 CPU 제작에는 연결하지 않는다(분석/표시 단계).
+  const MODULE_ORDER=['logic','clock','power','cooling','gate','register'];
+  const MODULE_DEFS={
+    logic:{label:'Logic Module',
+      reqs:['Compute 부품 포함','출력 50 FLOPS 이상','최고 온도 90°C 이하']},
+    clock:{label:'Clock Module',
+      reqs:['Clock 부품 포함','공급률 95% 이상']},
+    power:{label:'Power Module',
+      reqs:['PSU 포함','Fuse 과전류 보호 포함']},
+    cooling:{label:'Cooling Module',
+      reqs:['Heatsink 또는 Fan 포함','최고 온도 70°C 이하']},
+    gate:{label:'Gate Module',
+      reqs:['Gate 부품 2개 이상','최고 온도 90°C 이하']},
+    register:{label:'Register Module',
+      reqs:['Register/Latch 1개 이상','공급률 90% 이상']},
+    // ALU는 MODULE_ORDER에 넣지 않고 Module Lab의 전용 섹션에서 다룬다(마일스톤).
+    alu:{label:'ALU Module',
+      reqs:['Gate 부품 2개 이상','Register/Latch 1개 이상','Clock 포함',
+        '출력 500 FLOPS 이상','공급률 90% 이상','최고 온도 90°C 이하','Wire Efficiency 85% 이상']},
+  };
+  function moduleChecklist({
+    output=0,maxTemp=22,supplyRatio=0,wireEfficiency=0,
+    computeCount=0,clockCount=0,powerCount=0,fuseCount=0,
+    heatsinkCount=0,fanCount=0,gateCount=0,registerCount=0,
+  }={}){
+    return {
+      logic:[computeCount>0,output>=50,maxTemp<=90],
+      clock:[clockCount>0,supplyRatio>=0.95],
+      power:[powerCount>0,fuseCount>0],
+      cooling:[heatsinkCount>0||fanCount>0,maxTemp<=70],
+      gate:[gateCount>=2,maxTemp<=90],
+      register:[registerCount>=1,supplyRatio>=0.90],
+      alu:[gateCount>=2,registerCount>=1,clockCount>=1,output>=500,
+        supplyRatio>=0.90,maxTemp<=90,wireEfficiency>=0.85],
+    };
+  }
+  function moduleEligibility(input={}){
+    const checks=moduleChecklist(input);
+    const result={};
+    for(const key of MODULE_ORDER) result[key]=checks[key].every(Boolean);
+    return result;
+  }
+  // ---- 2차 업데이트: IP 등록 (개선점 P1-5) ------------------------------
+  // Tape-out B등급 이상에 도달하면 우수 Blueprint를 영구 부품(IP)으로 등록한다.
+  // IP는 1×1 Compute 부품으로 Shop에 등록되어 일반 부품처럼 반복 배치된다.
+  const IP_TYPE_LABELS={
+    logic_macro:'Logic Macro',clock_macro:'Clock Macro',
+    power_macro:'Power Stabilizer Macro',cooling_macro:'Cooling Macro',
+  };
+  const IP_MAX_AREA=16;       // 너무 큰 Blueprint는 IP로 등록 불가
+  const IP_SLOT_LIMIT=4;      // 등록 슬롯 제한
+  function ipTypeFromRole(role){
+    return {
+      basic_compute:'logic_macro',clock_module:'clock_macro',
+      power_stabilizer:'power_macro',cooling_module:'cooling_macro',
+    }[role]||'logic_macro';
+  }
+  function ipRegistrationEligible({
+    bestGrade=null,blueprintGrade='working',area=999,
+    alreadyRegistered=false,slotsUsed=0,slotLimit=IP_SLOT_LIMIT,maxArea=IP_MAX_AREA,
+  }={}){
+    const gradeOK=TAPEOUT_GRADE_RANK[bestGrade]>=TAPEOUT_GRADE_RANK.B;
+    const bpOK=['stable','efficient','compact','production'].includes(blueprintGrade);
+    const sizeOK=area<=maxArea;
+    const slotOK=slotsUsed<slotLimit;
+    return {
+      ok:gradeOK&&bpOK&&sizeOK&&slotOK&&!alreadyRegistered,
+      gradeOK,bpOK,sizeOK,slotOK,alreadyRegistered:Boolean(alreadyRegistered),
+    };
+  }
+  function ipStatsFromBlueprint({
+    sourceRate=0,sourceDemandAmps=0,sourceHeat=0,
+    processOutputMult=1,processHeatMult=1,
+  }={}){
+    // IP는 검증·정제된 매크로라 Chip(×0.6)보다 출력 보존이 좋다(×0.7).
+    return {
+      baseOutput:Math.max(.1,sourceRate*0.7*processOutputMult),
+      requiresAmps:Math.max(.05,sourceDemandAmps*0.8),
+      heat:Math.max(.05,sourceHeat*0.9*processHeatMult),
+    };
+  }
+  function normalizeIp(ip,index=0){
+    if(!ip||typeof ip!=='object') return null;
+    const baseOutput=Math.max(.1,Number(ip.baseOutput)||0);
+    return {
+      id:String(ip.id||`ip-${index+1}`),
+      name:String(ip.name||`Custom IP ${index+1}`).slice(0,40),
+      ipType:IP_TYPE_LABELS[ip.ipType]?ip.ipType:'logic_macro',
+      baseOutput,
+      requiresAmps:Math.max(.05,Number(ip.requiresAmps)||.5),
+      heat:Math.max(.05,Number(ip.heat)||.5),
+      quality:typeof ip.quality==='string'?ip.quality:'crude',
+      sourceBlueprintId:ip.sourceBlueprintId||null,
+      processNodeCreatedAt:Math.max(0,Math.floor(Number(ip.processNodeCreatedAt)||0)),
+      createdAt:Number(ip.createdAt)||Date.now(),
+    };
+  }
+  // ---- 3차 업데이트: 범용 해금 조건 (개선점 P0-3) -----------------------
+  // 부품마다 조건을 하드코딩하지 않도록 공통 평가 함수를 둔다. 표시 문자열은
+  // 게임 레이어가 담당하고, 여기서는 항목별 충족 여부와 전체 통과만 판정한다.
+  function checkUnlockCondition(cond={},state={}){
+    const met={};
+    let ok=true;
+    const need=(key,value,test)=>{ met[key]=test; ok=ok&&test; };
+    if(cond.totalCompute!=null) need('totalCompute',cond.totalCompute,(state.totalCompute||0)>=cond.totalCompute);
+    if(cond.funds!=null) need('funds',cond.funds,(state.funds||0)>=cond.funds);
+    if(cond.flux!=null) need('flux',cond.flux,(state.flux||0)>=cond.flux);
+    if(cond.processLevel!=null) need('processLevel',cond.processLevel,(state.processLevel||0)>=cond.processLevel);
+    if(cond.tapeouts!=null) need('tapeouts',cond.tapeouts,(state.tapeouts||0)>=cond.tapeouts);
+    if(cond.modules){
+      met.modules={};
+      for(const [m,n] of Object.entries(cond.modules)){
+        const has=(state.modules&&state.modules[m])||0;
+        met.modules[m]=has>=n;
+        ok=ok&&met.modules[m];
+      }
+    }
+    return {ok,met};
+  }
+  // ---- 3차 업데이트: Gate 다양성 보너스 (개선점 P2-3) -------------------
+  // 서로 다른 Gate 종류가 한 회로에 섞이면 회로 출력에 소폭 곱연산 보너스.
+  function gateDiversityBonus(distinctGateTypes=0){
+    if(distinctGateTypes<2) return 1;
+    return Math.min(1.20,1+0.05*(distinctGateTypes-1));
+  }
+  // ---- 3차 업데이트: ALU Chip (개선점 P2-5) -----------------------------
+  // ALU 인증 회로는 일반 Chip(×0.6)보다 출력 보존이 좋고 Clock 영향이 크다.
+  // 일반 압축 base에 ALU 보너스를 곱한다(예: 0.6×1.45≈0.87 of source).
+  const ALU_CHIP_OUTPUT_BONUS=1.45;
+  function aluChipBase(compressedBase=0,grade='B'){
+    return Math.max(.1,compressedBase*certGradeMultiplier(grade,'alu'));
+  }
+  // ---- 4차 업데이트: CPU Core (개선점 P3-1) -----------------------------
+  // ALU/Register/Clock/Power Module을 갖춘 뒤 고성능 회로를 CPU Core로 인증한다.
+  const CPU_CORE_OUTPUT_MIN=2500;
+  const CPU_CHIP_OUTPUT_BONUS=2.0;  // CPU Core Chip은 ALU보다 출력 보존이 더 좋다
+  const CPU_CORE_REQS=[
+    'ALU Module 1개 이상','Register Module 1개 이상','Clock Module 1개 이상',
+    'Power Module 1개 이상','총 출력 2.5k FLOPS 이상','공급률 95% 이상','최고 온도 85°C 이하',
+  ];
+  function cpuCoreChecklist({modules={},output=0,supplyRatio=0,maxTemp=22}={}){
+    return [
+      (modules.alu||0)>=1,
+      (modules.register||0)>=1,
+      (modules.clock||0)>=1,
+      (modules.power||0)>=1,
+      output>=CPU_CORE_OUTPUT_MIN,
+      supplyRatio>=0.95,
+      maxTemp<=85,
+    ];
+  }
+  function cpuCoreChipBase(compressedBase=0,grade='B'){
+    return Math.max(.1,compressedBase*certGradeMultiplier(grade,'cpu'));
+  }
+  // ---- 인증 등급 D~S (재미 깊이) — 최소 조건 초과 마진 채점 + Chip 배율 ----
+  // ALU/CPU 인증 회로가 최소 조건을 얼마나 넘기는지를 100점으로 채점한다.
+  // 등급 B = 기존 고정 배율(밸런스 기준점). 위로 A/S, 아래로 C/D 분산.
+  const CERT_GRADE_RANK={D:0,C:1,B:2,A:3,S:4};
+  const ALU_GRADE_BONUS={D:1.30,C:1.38,B:1.45,A:1.58,S:1.70};
+  const CPU_GRADE_BONUS={D:1.70,C:1.85,B:2.00,A:2.20,S:2.40};
+  function architectureCertScore({
+    output=0,outputMin=1,
+    supplyRatio=0,supplyMin=0.9,
+    maxTemp=22,tempMax=90,
+    gateCount=0,registerCount=0,
+  }={}){
+    const meetsBase=30;                            // 모든 최소 조건 충족 기본점(=C 바닥)
+    const outRatio=outputMin>0?output/outputMin:0; // 임계 대비 출력 배수
+    const outputScore=clamp(Math.log2(Math.max(1,outRatio))*18,0,30);
+    const supplyScore=clamp((supplyRatio-supplyMin)/Math.max(1e-6,1-supplyMin)*15,0,15);
+    const tempScore=clamp((tempMax-maxTemp)/30*15,0,15);
+    const diversityScore=clamp(Math.max(0,gateCount-2)*3+Math.min(registerCount,2)*2,0,10);
+    const total=meetsBase+outputScore+supplyScore+tempScore+diversityScore;
+    return {total,meetsBase,outputScore,supplyScore,tempScore,diversityScore};
+  }
+  function certGrade(total=0){
+    if(total>=90) return 'S';
+    if(total>=70) return 'A';
+    if(total>=50) return 'B';
+    if(total>=30) return 'C';
+    return 'D';
+  }
+  // 등급별 Chip 출력 배율(B=기존 고정값). kind: 'alu' | 'cpu'.
+  function certGradeMultiplier(grade='B',kind='alu'){
+    const table=kind==='cpu'?CPU_GRADE_BONUS:ALU_GRADE_BONUS;
+    return table[grade]??table.B;
+  }
+  // ---- 4차 업데이트: 거리 기반 효율 / Cache·VRM (개선점 P3-2/P3-4/P8-3) --
+  // 맨해튼 거리 falloff: 가까울수록 효과 100%, 멀수록 감소.
+  function adjacencyFactor(distance=Infinity){
+    if(!(distance>=0)||!isFinite(distance)) return 0;
+    if(distance<=2) return 1.0;
+    if(distance<=5) return 0.7;
+    return 0.4;
+  }
+  // Cache 인접 보너스: CPU/ALU 칩 근처에 Cache가 있으면 출력 증가(최대 +30%).
+  function cacheBonus(nearestDistance=Infinity){
+    if(!isFinite(nearestDistance)) return 1;   // Cache 없음
+    return 1+0.30*adjacencyFactor(nearestDistance);
+  }
+  const VRM_MISSING_PENALTY=0.8;  // CPU 칩이 VRM 없이 동작하면 출력 제한
+  // ---- 1차 업데이트: 메타 저장 버전 3 (개선점 P0-4) ----------------------
+  function migrateMetaV3(save={}){
+    const legacy=migrateMetaV2(save);
+    const rawNode=save.processNode&&typeof save.processNode==='object'?save.processNode:{};
+    return {
+      ...legacy,
+      metaVersion:3,
+      progressionStage:typeof save.progressionStage==='string'
+        ? save.progressionStage:'phase1_basic_circuit',
+      processNode:{
+        level:clamp(Math.floor(Number(rawNode.level)||0),0,PROCESS_MAX_LEVEL),
+        xp:Math.max(0,Number(rawNode.xp)||0),
+      },
+      tapeoutGradeHistory:Array.isArray(save.tapeoutGradeHistory)
+        ? save.tapeoutGradeHistory.slice(0,20):[],
+      bestTapeoutGrade:TAPEOUT_GRADE_RANK[save.bestTapeoutGrade]!=null
+        ? save.bestTapeoutGrade:null,
+      registeredIP:Array.isArray(save.registeredIP)
+        ? save.registeredIP.map(normalizeIp).filter(Boolean).slice(0,IP_SLOT_LIMIT):[],
+      nextIpId:Math.max(1,Math.floor(Number(save.nextIpId)||1)),
+    };
+  }
   return {
     SIDE_ORDER,clamp,rotateSide,unrotateSide,normalizeTerminalLayout,
     supplyRatio,combineResistorEffects,heatModifier,logicOutput,componentHeat,
     wireThermalStep,thermalFailureChance,THERMAL_FAILURE_RATE,THERMAL_FAILURE_THRESHOLD,
     shouldTripFuse,capacitorAssist,capacitorStep,
-    transistorBranchMultiplier,diodeDirectionFault,fanCoolingCoefficient,
+    transistorBranchMultiplier,diodeDirectionFault,fanCoolingCoefficient,fanSpinStrength,sinkDissipationCoefficient,
     phase2Ready,challengeProgress,fluxBlueprintSlotCost,compressedChipStats,
     tapeoutReward,bpUpgradeCost,prestigeLimits,starterStockForMeta,
-    migrateMetaV1,migrateMetaV2,normalizeChip,migrateActiveLayerV1,
+    migrateMetaV1,migrateMetaV2,migrateMetaV3,normalizeChip,migrateActiveLayerV1,
     classifyTopology,cycleRegions,migrateCellV6,migrateCellV7,
     analyzeBoardFixture,ACHIEVEMENT_RULES,evaluateAchievements,
     offlineProgress,OFFLINE_CAP_SECONDS,OFFLINE_DECAY,OFFLINE_MIN_SECONDS,
+    tapeoutScore,tapeoutGrade,higherTapeoutGrade,
+    TAPEOUT_GRADE_LABELS,TAPEOUT_GRADE_RANK,
+    PROCESS_NODES,PROCESS_MAX_LEVEL,processXpGain,applyProcessXp,processNodeEffects,
+    blueprintGrade,roleGuessFromCounts,ROLE_GUESS_LABELS,BLUEPRINT_GRADE_LABELS,
+    chipQuality,CHIP_QUALITY_LABELS,CHIP_QUALITY_RANK,
+    CHIP_HEAT_CONCENTRATION,certGradeHeatFactor,chipQualityHeatFactor,
+    MODULE_ORDER,MODULE_DEFS,moduleChecklist,moduleEligibility,
+    IP_TYPE_LABELS,IP_MAX_AREA,IP_SLOT_LIMIT,ipTypeFromRole,
+    ipRegistrationEligible,ipStatsFromBlueprint,normalizeIp,
+    checkUnlockCondition,gateDiversityBonus,
+    ALU_CHIP_OUTPUT_BONUS,aluChipBase,
+    CPU_CORE_OUTPUT_MIN,CPU_CORE_REQS,cpuCoreChecklist,cpuCoreChipBase,
+    architectureCertScore,certGrade,certGradeMultiplier,CERT_GRADE_RANK,
+    adjacencyFactor,cacheBonus,VRM_MISSING_PENALTY,
   };
 })();
 /* CIRCUIT_FORGE_CORE_END */
@@ -1137,10 +1662,7 @@ const COMPONENTS = {
     unlock:'firstCircuit',
     category:'피드백', role:'분기 전류 상태를 색으로 보여주는 진단등입니다.',
     effect:'전류 진단등 · 요구 0.10A', requirement:'선택 사항', tip:'백색=정상, 파랑=전류 부족, 빨강 점멸=PSU 병목, 꺼짐=개방. 처음 점등 시 Flux +2.' },
-  junction: { name:'Junction', icon:'✚', color:'#d6a934', cost:15, vl:0, vr:0, ohm:0.001, base:0, requiresAmps:0, kind:'routing', family:'junction',
-    terminals:{ N:'junction', E:'junction', S:'junction', W:'junction' },
-    category:'배선', role:'세 갈래 이상의 전선을 하나의 전기적 접점으로 연결합니다.',
-    effect:'4방향 전기 연결 · 전류 부하 없음', requirement:'분기 및 교차 연결', tip:'일반 전선은 최대 두 방향만 연결됩니다. T/X 접점에는 Junction을 사용하세요.' },
+  // Junction 폐지: 전선만으로 3방향 이상 분기가 가능하다(전기 분석이 분기 노드를 자동 인식).
   switch:   { name:'Switch', icon:'🔘', color:'#3fa34d', cost:30, vl:0, vr:0, ohm:0.05, base:0, requiresAmps:0.02, kind:'control', family:'switch',
     terminals:{ input:'W', output:'E' },
     unlock:'compute10',
@@ -1162,8 +1684,21 @@ const COMPONENTS = {
     terminals:{ input:'W', output:'E' }, category:'보호', role:'1200W PSU용 100A 보호 Fuse.', effect:'100A 초과 시 분기 개방', requirement:'1200W PSU 해금', tip:'대응 PSU와 같은 정격의 Fuse를 사용하세요.' },
   heatsink: { name:'Heatsink', icon:'▥', color:'#b8c2c8', cost:220, vl:0, vr:0, base:0, requiresAmps:0, kind:'thermal', family:'heatsink', attachment:true,
     unlock:'heat70',
-    category:'냉각 장착물', role:'부품 위에 장착해 해당 부품의 방열과 열용량을 높입니다. 전력·보드 칸 소비 없음.',
-    effect:'장착 부품 집중 냉각', requirement:'Junction을 제외한 배치 부품', tip:'Heatsink를 선택한 뒤 냉각할 부품을 클릭하세요. 같은 부품을 다시 클릭하면 회수합니다.' },
+    category:'냉각 장착물', role:'부품 위에 장착하면 그 부품을 집중 냉각합니다. 빈 보드 칸에 깔면 히트파이프가 보낸 열을 대기로 내보내는 방출판이 되며(자체 온도를 가집니다), 인접한 보드 히트싱크끼리는 하나의 판처럼 병합되어 더 큰 방열 면적이 됩니다.',
+    effect:'부품 장착=집중 냉각 / 빈 칸=히트파이프 방출판', requirement:'부품 위 또는 빈 칸', tip:'Heatsink를 선택한 뒤 부품을 클릭하면 장착, 빈 칸을 클릭하면 보드 히트싱크(방출판)로 깔립니다. 드래그로 여러 칸을 연속 배치할 수 있고, 같은 칸을 다시 클릭하면 회수합니다. 방출판은 히트파이프로 부품 히트싱크와 이어야 효과가 있으며, 위에 팬을 얹으면 더 많은 열을 받아냅니다.' },
+  // ---- 히트파이프 (N등급) : 부품 히트싱크의 열을 보드 히트싱크로 전달하는 배관 ----
+  heatpipe1:{ name:'Heat Pipe Ⅰ', icon:'┃', color:'#c98a5a', cost:260, unlockCost:1200, unlockFlops:60000,
+    base:0, requiresAmps:0, kind:'thermal', family:'heatpipe', conduit:true, pipeGrade:1, pipeCapacity:1, phase:2,
+    category:'열 배관', role:'배선처럼 드래그해 그리는 레이어 2 배관(부품·히트싱크 위를 지나갑니다). 부착 Heatsink 위에 올리면 열원, 보드 히트싱크 위에 올리면 방출판이 되어 둘을 이으면 열이 빠져나갑니다. 등급이 높을수록 전달 효율이 좋아지고 굵어집니다.',
+    effect:'전달 효율 ×1.0 (기본)', requirement:'Phase 2', tip:'그은 방향으로만 이어집니다. 부착 Heatsink↔보드 히트싱크를 배관으로 연결하세요. 많이 깔수록·방출판이 크고 팬이 있을수록 더 많이 식습니다.' },
+  heatpipe2:{ name:'Heat Pipe Ⅱ', icon:'┃', color:'#d6a066', cost:600, unlockCost:3000, unlockFlops:140000,
+    base:0, requiresAmps:0, kind:'thermal', family:'heatpipe', conduit:true, pipeGrade:2, pipeCapacity:2, phase:2,
+    category:'열 배관', role:'2등급 히트파이프. 더 굵고 열 전달 효율이 높습니다(×1.7).',
+    effect:'전달 효율 ×1.7', requirement:'Phase 2', tip:'같은 배관·방출판이라도 상위 등급일수록 더 많은 열을 빠르게 보냅니다.' },
+  heatpipe3:{ name:'Heat Pipe Ⅲ', icon:'┃', color:'#e6b878', cost:1300, unlockCost:7000, unlockFlops:320000,
+    base:0, requiresAmps:0, kind:'thermal', family:'heatpipe', conduit:true, pipeGrade:3, pipeCapacity:4, phase:2,
+    category:'열 배관', role:'3등급 히트파이프. 가장 굵고 전달 효율이 가장 높습니다(×2.8).',
+    effect:'전달 효율 ×2.8', requirement:'Phase 2', tip:'고발열 칩의 열을 방출판으로 강하게 빼낼 때 효율적입니다. 방출판·팬도 함께 키우세요.' },
   capacitor:{ name:'Capacitor', icon:'▥', color:'#a78bfa', cost:450, unlockCost:1000, unlockFlops:50000,
     vl:0, vr:1, ohm:0.15, base:0, requiresAmps:0.05, chargeAmps:0.35, peakAmps:1.5,
     kind:'storage', family:'capacitor', polarized:true,
@@ -1183,20 +1718,95 @@ const COMPONENTS = {
     category:'분기 증폭', role:'자신이 속한 Logic 분기의 출력만 증폭하며 추가 전류와 Heat를 발생시킵니다.',
     effect:'분기 Logic 출력 ×1.35 · 요구 0.40A', requirement:'Phase 2', tip:'여러 개의 배율은 최대 ×1.80까지만 중첩됩니다.' },
   fan:      { name:'Cooling Fan', icon:'🌀', color:'#65c7d0', cost:750, unlockCost:2500, unlockFlops:80000,
-    vl:0, vr:1, ohm:0.3, base:0, requiresAmps:0.35,
-    kind:'cooling', family:'fan', phase:2,
-    footprint:[[0,0],[1,0]],
-    terminalCells:[
-      {offset:[0,0],side:'W',type:'input'},
-      {offset:[1,0],side:'E',type:'output'},
-    ],
-    category:'범위 냉각', role:'전류를 소비해 두 칸 반경의 여러 부품을 냉각합니다.',
-    effect:'요구 0.35A · 범위 방열', requirement:'Phase 2 · 2칸 공간', tip:'전력 부족 시 회전과 냉각 성능이 함께 감소합니다.' },
+    base:0, requiresAmps:0, fanDraw:0.35,
+    kind:'cooling', family:'fan', phase:2, attachment:true, attachSize:2,
+    category:'면적 냉각', role:'부품 위에 2×2로 덮어 부착합니다. 덮은 부품이 통전 중이면 회전하며 그 영역(최대 4칸)을 한꺼번에 냉각합니다. 방열판과 함께 부착해 냉각을 합칠 수 있습니다.',
+    effect:'2×2 부착 · 통전 시 면적 냉각', requirement:'Phase 2 · 2×2 영역', tip:'팬을 선택한 뒤 냉각할 부품 영역을 클릭하면 2×2로 덮어 부착됩니다. 덮은 부품 중 통전 분기의 공급률이 높을수록 빠르게 돌고 강하게 식힙니다. 전력이 없으면 멈춥니다. 같은 칸의 팬을 다시 클릭하면 회수합니다.' },
   chip:     { name:'Compressed Chip', icon:'◆', color:'#8f7cff', cost:0, vl:0, vr:1, ohm:0, base:0,
     requiresAmps:0.1, heatProfile:1, kind:'compute', family:'chip', polarized:true, failureMode:'short',
     terminals:{ input:'W', output:'E' },
     category:'압축 연산', role:'검증된 회로를 1×1로 압축한 밀집 Compute 부품. 공간을 아끼는 대신 출력이 줄고 발열이 한 칸에 집중됩니다.',
-    effect:'원 회로 출력 60% · Heat 100%(집중)', requirement:'Blueprint 압축', tip:'회로 전체 발열이 한 칸에 몰리므로 Heatsink·Fan 냉각이 거의 필수입니다. 시원하고 효율적인 회로일수록 압축 가치가 큽니다. 재압축할 때마다 출력이 ×0.6로 감쇠합니다.' },
+    effect:'원 회로 출력 60% · Heat 70%(집중) · 등급/품질↑일수록 발열↓', requirement:'Blueprint 압축', tip:'회로 발열의 70%가 한 칸에 몰리므로 Heatsink·Fan 냉각이 거의 필수입니다. 인증 등급(ALU/CPU)이나 품질이 높은 칩일수록 발열이 더 낮습니다. 시원하고 효율적인 회로일수록 압축 가치가 큽니다. 재압축할 때마다 출력이 ×0.6로 감쇠합니다.' },
+  // ---- Phase 3: Gate (개선점 P2-3) — 저출력 Compute, ALU의 재료 ----
+  nand:     { name:'NAND Gate', icon:'⊼', color:'#7aa6db', cost:380, unlockCost:2200, unlockFluxCost:5,
+    vl:0, vr:1, ohm:4.0, base:1.0, requiresAmps:0.35, heatProfile:1.10,
+    kind:'compute', family:'gate', phase:3, polarized:true, failureMode:'short',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:1, modules:{logic:2}, totalCompute:150000 },
+    category:'논리 게이트', role:'단독 출력은 낮지만 ALU·제어 회로의 기본 재료입니다. 서로 다른 Gate를 섞으면 다양성 보너스를 받습니다.',
+    effect:'1.0 FLOPS · 요구 0.35A', requirement:'SSI 공정 · Logic Module 2개 · 25만 FLOPS', tip:'NAND/NOR/XOR를 함께 배치하면 회로 출력에 Gate 다양성 보너스가 붙습니다.' },
+  nor:      { name:'NOR Gate', icon:'⊽', color:'#6f9ed4', cost:380, unlockCost:2200, unlockFluxCost:5,
+    vl:0, vr:1, ohm:4.0, base:1.0, requiresAmps:0.35, heatProfile:1.10,
+    kind:'compute', family:'gate', phase:3, polarized:true, failureMode:'short',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:1, modules:{logic:2}, totalCompute:150000 },
+    category:'논리 게이트', role:'단독 출력은 낮지만 ALU·제어 회로의 기본 재료입니다.',
+    effect:'1.0 FLOPS · 요구 0.35A', requirement:'SSI 공정 · Logic Module 2개 · 25만 FLOPS', tip:'서로 다른 Gate 종류를 섞으면 다양성 보너스를 받습니다.' },
+  xor:      { name:'XOR Gate', icon:'⊻', color:'#5f96cf', cost:520, unlockCost:2800, unlockFluxCost:5,
+    vl:0, vr:1, ohm:4.0, base:1.2, requiresAmps:0.45, heatProfile:1.20,
+    kind:'compute', family:'gate', phase:3, polarized:true, failureMode:'short',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:1, modules:{logic:2}, totalCompute:150000 },
+    category:'논리 게이트', role:'가산기의 핵심 게이트. ALU 제작에 특히 유용합니다.',
+    effect:'1.2 FLOPS · 요구 0.45A', requirement:'SSI 공정 · Logic Module 2개 · 25만 FLOPS', tip:'XOR는 ALU 인증의 Gate 다양성 조건을 채우기 좋습니다.' },
+  gatearray:{ name:'Gate Array', icon:'▦', color:'#4f86bf', cost:1400, unlockCost:6000, unlockFluxCost:8,
+    vl:0, vr:1, ohm:4.0, base:3.0, requiresAmps:1.10, heatProfile:1.65,
+    kind:'compute', family:'gate', phase:3, polarized:true, failureMode:'short',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:2, modules:{logic:2}, totalCompute:400000 },
+    category:'논리 게이트', role:'한 칸에 많은 게이트를 집적해 공간 효율은 좋지만 발열이 큽니다.',
+    effect:'3.0 FLOPS · 요구 1.10A · 고발열', requirement:'MSI 공정 · Logic Module 2개 · 40만 FLOPS', tip:'출력 대비 공간 효율이 높지만 Heatsink가 거의 필수입니다.' },
+  // ---- Phase 3: Register / Memory (개선점 P2-4) — 직접 출력은 작고 ALU/CPU 효율용 ----
+  latch:    { name:'Latch', icon:'▤', color:'#c79bd6', cost:300, unlockCost:1800, unlockFluxCost:4,
+    vl:0, vr:1, ohm:3.0, base:0, requiresAmps:0.20, heatProfile:0.6,
+    kind:'memory', family:'register', phase:3, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:1, modules:{gate:1}, totalCompute:300000 },
+    category:'메모리', role:'1비트 상태를 유지합니다. 직접 FLOPS는 만들지 않지만 ALU·CPU 인증에 필요합니다.',
+    effect:'상태 저장 · 요구 0.20A · 출력 없음', requirement:'Gate Module 1개 · 30만 FLOPS', tip:'메모리 부품은 유효 회로의 필수 조건이 아니며, ALU/CPU 제작 조건에 사용됩니다.' },
+  flipflop: { name:'Flip-Flop', icon:'▥', color:'#bd8fce', cost:520, unlockCost:2600, unlockFluxCost:5,
+    vl:0, vr:1, ohm:3.0, base:0, requiresAmps:0.25, heatProfile:0.7,
+    kind:'memory', family:'register', phase:3, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:2, modules:{gate:1}, totalCompute:500000 },
+    category:'메모리', role:'클럭 동기 1비트 저장 소자. Register/Register File의 기반입니다.',
+    effect:'클럭 동기 저장 · 요구 0.25A · 출력 없음', requirement:'MSI 공정 · Gate Module 1개 · 50만 FLOPS', tip:'ALU/CPU 인증의 메모리 조건을 채웁니다.' },
+  register: { name:'Register', icon:'▦', color:'#b383c6', cost:900, unlockCost:4200, unlockFluxCost:6,
+    vl:0, vr:1, ohm:3.0, base:0, requiresAmps:0.35, heatProfile:0.8,
+    kind:'memory', family:'register', phase:3, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:2, modules:{gate:1}, totalCompute:750000 },
+    category:'메모리', role:'다비트 레지스터. CPU Core 인증의 핵심 메모리 부품입니다.',
+    effect:'다비트 저장 · 요구 0.35A · 출력 없음', requirement:'MSI 공정 · Gate Module 1개 · 75만 FLOPS', tip:'CPU Core는 Register File이 없으면 출력이 제한될 예정입니다.' },
+  // ---- Phase 4: CPU 지원 부품 (개선점 P3-2/P3-4) — 거리·존재 기반 효과 ----
+  vrm:      { name:'VRM', icon:'⊞', color:'#e0a96d', cost:1100, unlockCost:5000, unlockFluxCost:6,
+    vl:0, vr:1, ohm:0.2, base:0, requiresAmps:0.40, heatProfile:1.20,
+    kind:'support', family:'vrm', phase:4, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:2, modules:{power:1}, totalCompute:500000 },
+    category:'전원 보조', role:'고성능 CPU/GPU 칩의 전류 피크를 완화합니다. 보드에 VRM이 없으면 CPU Core 칩 출력이 제한됩니다.',
+    effect:'CPU 칩 VRM 페널티 해제 · 요구 0.40A · 발열↑', requirement:'MSI 공정 · Power Module · 50만 FLOPS', tip:'CPU Core Chip을 쓰는 회로에는 VRM을 함께 배치하세요.' },
+  l1cache:  { name:'L1 Cache', icon:'▣', color:'#9cd0c0', cost:700, unlockCost:3500, unlockFluxCost:5,
+    vl:0, vr:1, ohm:2.0, base:0, requiresAmps:0.15, heatProfile:0.5,
+    kind:'support', family:'cache', phase:4, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:2, modules:{register:1}, totalCompute:600000 },
+    category:'캐시', role:'가까운 CPU/ALU 칩의 출력을 높입니다. 칩과 가까울수록 효과가 큽니다(맨해튼 거리).',
+    effect:'인접 CPU/ALU 칩 출력 +최대 30% · 요구 0.15A', requirement:'MSI 공정 · Register Module · 60만 FLOPS', tip:'Cache를 CPU/ALU 칩 2칸 이내에 두면 효과 100%, 멀어질수록 감소합니다.' },
+  l2cache:  { name:'L2 Cache', icon:'▦', color:'#88c2b2', cost:1500, unlockCost:6500, unlockFluxCost:7,
+    vl:0, vr:1, ohm:2.0, base:0, requiresAmps:0.25, heatProfile:0.6,
+    kind:'support', family:'cache', phase:4, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:3, modules:{register:1}, totalCompute:1200000 },
+    category:'캐시', role:'더 넓은 캐시. L1과 동일하게 인접 CPU/ALU 칩 출력을 높입니다.',
+    effect:'인접 CPU/ALU 칩 출력 +최대 30% · 요구 0.25A', requirement:'LSI 공정 · Register Module · 120만 FLOPS', tip:'여러 칩을 둘러싸도록 배치하면 각 칩이 가까운 Cache 효과를 받습니다.' },
+  clocktree:{ name:'Clock Tree Buffer', icon:'⑂', color:'#c9b06d', cost:900, unlockCost:4000, unlockFluxCost:5,
+    vl:0, vr:1, ohm:0.5, base:0, requiresAmps:0.20, heatProfile:0.6,
+    kind:'support', family:'clocktree', phase:4, polarized:true, failureMode:'open',
+    terminals:{ input:'W', output:'E' },
+    unlockCondition:{ processLevel:2, modules:{clock:1}, totalCompute:500000 },
+    category:'클럭 보조', role:'서로 다른 주파수 Clock 혼용 시의 동기화 손실(×0.95)을 제거합니다.',
+    effect:'Clock 혼합 페널티 제거 · 요구 0.20A', requirement:'MSI 공정 · Clock Module · 50만 FLOPS', tip:'여러 종류의 Clock을 함께 쓰는 큰 회로에서 유용합니다.' },
 };
 
 // Variable Resistor의 2/4/8Ω은 참고 표시값이며 실제 효과는 아래 배율만 사용한다.
@@ -1264,9 +1874,10 @@ function resistorModeOf(cell){ return cell?.resistorMode||'mid'; }
 function familyOf(name){ return COMPONENTS[name]?.family || name; }
 function isEditablePolarized(name){
   const d=COMPONENTS[name];
+  // 극성(+/−) 단자를 가진 1×1 부품은 모두 단자 위치를 편집할 수 있다.
   return Boolean(d?.polarized
     && (d.footprint?.length||1)===1
-    && ['psu','clock','logic','led'].includes(d.family));
+    && d.terminals?.input && d.terminals?.output);
 }
 function defaultTerminalLayout(name){
   const d=COMPONENTS[name];
@@ -1310,7 +1921,7 @@ function peekInventoryInstance(name){
   return list.length ? list[list.length-1] : null;
 }
 
-const SHOP_ORDER = ['battery','lithium','lipoly','psu504','psu804','psu1200','clock','fastclock','overclock','logic','buffered','microalu','resistor','precision','variable','led','junction','switch','fuse','fuse12','fuse25','fuse42','fuse67','fuse100','heatsink','capacitor','diode','transistor','fan'];
+const SHOP_ORDER = ['battery','lithium','lipoly','psu504','psu804','psu1200','clock','fastclock','overclock','logic','buffered','microalu','resistor','precision','variable','led','switch','fuse','fuse12','fuse25','fuse42','fuse67','fuse100','heatsink','heatpipe1','heatpipe2','heatpipe3','capacitor','diode','transistor','fan','nand','nor','xor','gatearray','latch','flipflop','register','vrm','l1cache','l2cache','clocktree'];
 
 // ---- 셀 타입 -----------------------------------------------------------
 // cell = { wire, wireDirs, comp, on, rotation, anchorX, anchorY, terminalLayout, burned, faultCode,
@@ -1323,14 +1934,15 @@ function newBoard(size){
     chipData:null,
     automated:false,
     burned:false, faultCode:null, faultTemperature:null, faultCurrent:null,
-    temperature:22, heatsink:false, overloadSeconds:0,
+    temperature:22, heatsink:false, boardHeatsink:false, boardTemp:22, fan:false, fanAnchor:false, overloadSeconds:0,
+    pipe:false, pipeDirs:0, pipeGrade:0, pipeCapacity:0, pipeName:null,
     wireTemperature:22, wireBurned:false, wireFaultCode:null,
     wireFaultTemperature:null, wireFaultCurrent:null,
   });
   return {
     size, cells,
     ambientTemperature:22,
-    thermalVersion:3,
+    thermalVersion:4,
   };
 }
 
@@ -1350,9 +1962,11 @@ const G = {
   selectedWireGrade: 0,
   wireInventory: [50, 0, 0, 0, 0, 0],
   viewMode: 'basic',        // 'basic' | 'heat' — 보드 보기 모드
+  shopTabbedView: false,    // 부품 상점: 분류 탭 보기 on/off
+  shopActiveGroup: null,    // 분류 탭 모드의 활성 계열 라벨
 
   electricalVersion: 7,
-  metaVersion: 2,
+  metaVersion: 3,
   faultVersion: 1,
   economyRate: 0.25,
   circuitVoltage: '12v',    // '12v' | '14v' | '16v'
@@ -1411,6 +2025,14 @@ const G = {
   nextChipId: 1,
   tapeoutHistory: [],
   tapeoutReadyNotified: false,
+  // 1차 업데이트: 진행 단계 / 공정 세대 / Tape-out 등급 이력
+  progressionStage: 'phase1_basic_circuit',
+  processNode: { level:0, xp:0 },
+  tapeoutGradeHistory: [],
+  bestTapeoutGrade: null,
+  // 2차 업데이트: 등록 IP (영구 부품)
+  registeredIP: [],
+  nextIpId: 1,
 };
 
 const GRID_LEVELS = [
@@ -1497,6 +2119,7 @@ function componentStateAt(x,y){
     faultCode:cell.faultCode||null,
     temperature:cell.temperature??G.board.ambientTemperature,
     heatsink:Boolean(cell.heatsink),
+    fan:Boolean(cell.fan),
     operational:!cell.burned,
   };
 }
@@ -1720,16 +2343,11 @@ function analyzeCircuits(){
     circuits.push(buildCircuit(nodes, edges));
   }
   const invalidContacts=[];
-  const invalidWireBranches=[];
+  const invalidWireBranches=[]; // 전선만으로 분기 허용 — 더 이상 채우지 않음(호환용 유지)
   const junctionWarnings=[];
   for(let y=0;y<size;y++) for(let x=0;x<size;x++){
     const a=cells[idx(x,y)];
     if(!(a.wire||a.comp)) continue;
-    if(a.wire && !a.comp && plainWireDegree(x,y)>2) invalidWireBranches.push([x,y]);
-    if(a.comp==='junction'){
-      const degree=DIRECTIONS.reduce((count,{dx,dy})=>count+(cellsConnected(x,y,x+dx,y+dy)?1:0),0);
-      if(degree<3) junctionWarnings.push([x,y,degree]);
-    }
     for(const {dx,dy,side} of DIRECTIONS.filter(d=>d.side==='E'||d.side==='S')){
       const nx=x+dx, ny=y+dy;
       if(!inBounds(nx,ny)) continue;
@@ -1789,8 +2407,17 @@ function wireSpecAt(x,y){ return WIRE_GRADES[G.board.cells[idx(x,y)]?.wireGrade?
 // heat = requiresAmps × 12 × supplyRatio × HEAT_SCALE × clockHeatFactor × voltHeatMult × resistorHeatMult
 // 평형 온도 목표: Basic+12V≈58°C, Fast+12V≈80°C, Fast+14V≈90°C, OC+16V Heatsink≈70°C
 const HEAT_SCALE = 0.09;
-const HEATSINK_DISSIPATION = 0.02;  // Heatsink 추가 방열 계수 (수동 0.015에 더해짐)
-const FAN_DISSIPATION = 0.012;
+const HEATSINK_DISSIPATION = 0.03;  // Heatsink 추가 방열 계수 (수동 0.015에 더해짐) — 칩 발열 대응 상향
+const FAN_DISSIPATION = 0.06;       // 2×2 부착팬 풀 공급 시 방열 계수 (공급률 비례, Heatsink보다 강함) — 상향
+const HEATSINK_FAN_SYNERGY = 1.6;   // Heatsink+Fan 동시 부착 시 방열계수 시너지 배율
+// 현실적 열흐름: 소스(부품 부착 히트싱크) → 히트파이프 전도 → 보드 히트싱크(방출판, 자체 온도) → 대기/팬 방열.
+const PIPE_GRADE_EFF = {1:1.0, 2:1.7, 3:2.8}; // 히트파이프 등급별 열 전달 효율(등급↑=굵고 효율↑)
+const PIPE_K_PER_CELL = 0.10;    // 파이프 셀 1칸당 전도 계수(×등급효율) — 히트파이프는 고전도(거의 등온)
+const PIPE_CELLS_CAP = 8;        // 파이프 셀 수 전도 가산 상한(체감)
+const PLATE_PASSIVE_K = 0.03;    // 보드 히트싱크(방출판) 1칸당 대기 방열 계수
+const PLATE_FAN_K = 0.08;        // 방출판 위 팬이 덮은 1칸당 추가 방열(네트워크 작동 시)
+const PIPE_MAX_BONUS = 0.50;     // 소스 1개가 파이프 경로로 받는 방열 계수 상한(큰 방열판 투자 보상)
+function pipeGradeEff(grade){ return PIPE_GRADE_EFF[grade]||1.0; }
 
 // 분기 저항 배율 계산
 function getBranchResistorMults(branchComponents) {
@@ -1824,6 +2451,12 @@ function jouleHeatOf(cell, branch, clockMod=1, voltMode=null) {
   if(cell.comp==='chip'&&cell.chipData){
     const clockHeat=Math.pow(Math.max(1,clockMod),0.55);
     return (cell.chipData.heat||.05)*(branch.supplyRatio||0)
+      *clockHeat*vm.heatMult*(branch.resistorHeatMult??1);
+  }
+  // 등록 IP도 원 회로 발열을 한 칸에 응축한 값을 사용한다(Chip과 동일 처리).
+  if(d.family==='ip'){
+    const clockHeat=Math.pow(Math.max(1,clockMod),0.55);
+    return (d.heat||.05)*(branch.supplyRatio||0)
       *clockHeat*vm.heatMult*(branch.resistorHeatMult??1);
   }
   // 저항(레귤레이터)은 분기 compute 부품에서 줄여준 열을 자신이 흡수해 발열한다.
@@ -1939,10 +2572,8 @@ function branchComponents(nodeKeys){
 function extractElectricalBranches(closedNodeKeys){
   if(!closedNodeKeys.size) return { topology:'open', branches:[], junctionKeys:[] };
   const adjacency=closedAdjacency(closedNodeKeys);
-  const junctionKeys=[...adjacency.keys()].filter(key=>{
-    const [x,y]=key.split(',').map(Number);
-    return G.board.cells[idx(x,y)].comp==='junction' && adjacency.get(key).length>=3;
-  });
+  // 분기 노드 = 닫힌 경로에서 3방향 이상으로 갈라지는 모든 셀(전선·부품 무관). Junction 부품 없이도 분기 성립.
+  const junctionKeys=[...adjacency.keys()].filter(key=>adjacency.get(key).length>=3);
   if(junctionKeys.length<2){
     const nodeKeys=new Set(closedNodeKeys);
     return {
@@ -1996,6 +2627,33 @@ function extractElectricalBranches(closedNodeKeys){
   const topology=CircuitForgeCore.classifyTopology(branches,junctionKeys.length);
   return { topology, branches, junctionKeys, endpointGroups };
 }
+// 보드에서 조건에 맞는 가장 가까운 부품까지의 맨해튼 거리(자기 자신 제외)
+function nearestComponentDistance(x,y,familyPredicate){
+  let best=Infinity;
+  for(let yy=0;yy<G.board.size;yy++) for(let xx=0;xx<G.board.size;xx++){
+    if(xx===x&&yy===y) continue;
+    if(!isComponentAnchor(xx,yy)) continue;
+    const cell=G.board.cells[idx(xx,yy)];
+    if(cell.burned) continue;
+    if(familyPredicate(COMPONENTS[cell.comp])){
+      const dist=Math.abs(xx-x)+Math.abs(yy-y);
+      if(dist<best) best=dist;
+    }
+  }
+  return best;
+}
+// CPU/ALU 칩 출력 배율: 인접 Cache 보너스 + VRM 미보유 페널티(CPU 한정)
+function architectureChipMultiplier(x,y,name){
+  if(name!=='chip') return 1;
+  const role=chipDataAt(x,y)?.architectureRole;
+  if(role!=='cpu'&&role!=='alu') return 1;
+  let mult=CircuitForgeCore.cacheBonus(
+    nearestComponentDistance(x,y,d=>d?.family==='cache'));
+  if(role==='cpu' && !boardHasComponent((n,d)=>d?.family==='vrm')){
+    mult*=CircuitForgeCore.VRM_MISSING_PENALTY;
+  }
+  return mult;
+}
 function analyzeBranchElectrical(closedNodeKeys, activeComps) {
   const topology = extractElectricalBranches(closedNodeKeys);
   const activeKeys = new Set(activeComps.map(([x,y]) => `${x},${y}`));
@@ -2011,6 +2669,7 @@ function analyzeBranchElectrical(closedNodeKeys, activeComps) {
   const psuSeriesInvalid = sourceEntries.some(e => e.psus.length > 1) || groupKeys.size > 1;
   const psus = sourceEntries.flatMap(e => e.psus);
   const emf = psus.length ? voltMode.volt : 0;
+  // PSU 총 공급 가능 전류 (A) — 전압과 무관하게 Amps 용량 고정
   // PSU 총 공급 가능 전류 (A) — 전압과 무관하게 Amps 용량 고정
   const psuCapacityAmps = psuSeriesInvalid ? 0
     : psus.reduce((sum, [,,name]) => sum + (COMPONENTS[name]?.amps || 0), 0);
@@ -2095,13 +2754,15 @@ function analyzeBranchElectrical(closedNodeKeys, activeComps) {
     branch.thermalComputeBase = branch.operating ? branch.components.reduce((sum, [x,y,name]) => {
       if (COMPONENTS[name]?.kind !== 'compute') return sum;
       const temp = componentStateAt(x,y)?.temperature || G.board.ambientTemperature;
-      return sum + CircuitForgeCore.logicOutput({
+      const out = CircuitForgeCore.logicOutput({
         base:componentStatAt(x,y,name,'base')||0,
         supply:branch.supplyRatio,
         voltage:voltMode.outputMult,
         resistor:branch.resistorOutputMult*branch.transistorOutputMult,
         temperature:temp,
       });
+      // CPU/ALU 칩은 인접 Cache·VRM 존재에 따라 출력이 가감된다(거리 기반)
+      return sum + out * architectureChipMultiplier(x,y,name);
     }, 0) : 0;
     branch.outputBase = branch.operating ? branch.thermalComputeBase : 0;
   }
@@ -2224,16 +2885,13 @@ function buildCircuit(nodes, edges){
 
   // ---- 효율 계산 (GDD 4.5) ----
   let wireEff = 0, parallelBonus = 1, clockModifier = 1, base = 0;
+  let gateDiversityBonus = 1;
   let poweredBase = 0;
   let vl = powerCount ? 12 : 0;
   let electrical = {
     topology:'open', branches:[], psuCount:0,
   };
-  // 불법 와이어 분기가 있으면 회로 분석 전에 무효화 (while(true) 무한 루프 방지)
-  if (valid && nodes.some(([x,y]) => plainWireDegree(x,y) > 2)) {
-    valid = false;
-    reason = '일반 전선 분기 · Junction 필요';
-  }
+  // 전선만으로 3방향 이상 분기 허용(Junction 폐지). 분기 노드는 전기 분석에서 자동 인식한다.
   if (valid) {
     const bbW = maxX-minX, bbH = maxY-minY;
     const idealWire = Math.max(4, 2*(bbW+bbH)+4);
@@ -2262,7 +2920,9 @@ function buildCircuit(nodes, edges){
     const fastestFreq = clockFrequencies.length > 0 ? Math.max(...clockFrequencies) : 0;
     const freqModifier = fastestFreq > 0 ? Math.sqrt(fastestFreq) : 0;
     const uniqueFreqs = new Set(clockFrequencies);
-    const syncMismatch = clockFrequencies.length > 1 && uniqueFreqs.size > 1;
+    // Clock Tree Buffer가 회로에 있으면 서로 다른 주파수 혼용 페널티(×0.95)를 제거한다.
+    const hasClockTree = electricallyActive.some(([,,name]) => COMPONENTS[name]?.family === 'clocktree');
+    const syncMismatch = clockFrequencies.length > 1 && uniqueFreqs.size > 1 && !hasClockTree;
     clockModifier = freqModifier * (syncMismatch ? 0.95 : 1.0);
 
     // 병렬 보너스: 같은 Junction 쌍 사이 같은 계열 Logic이 있을 때 적용 (GDD 7.7)
@@ -2287,12 +2947,18 @@ function buildCircuit(nodes, edges){
       if (d.kind === 'compute') base += componentStatAt(x,y,name,'base')||0;
     }
     poweredBase = electrical.branches.reduce((sum, branch) => sum + branch.outputBase, 0);
+
+    // Gate 다양성 보너스: 서로 다른 Gate 종류가 섞이면 회로 출력 소폭 증가 (P2-3)
+    const gateTypes = new Set(electricallyActive
+      .filter(([,,name]) => COMPONENTS[name]?.family === 'gate')
+      .map(([,,name]) => name));
+    gateDiversityBonus = CircuitForgeCore.gateDiversityBonus(gateTypes.size);
   }
 
   return {
     nodes, closedNodes, closedNodeKeys, closedRegions, comps, closedComps, activeComps, disabledComps,
     wires, valid, reason, hasCycle, batteryShort,
-    wireEff, parallelBonus, clockModifier, base, poweredBase, vl, electrical,
+    wireEff, parallelBonus, clockModifier, gateDiversityBonus, base, poweredBase, vl, electrical,
     allSwitchesOn, compCounts, allCompCounts, bbox:[minX,minY,maxX,maxY],
     offPathCompCount: comps.length - closedComps.length,
     rate: 0,
@@ -2330,7 +2996,7 @@ let nowMs=performance.now();
 function calculateCircuitRate(c){
   if(!c.valid) return 0;
   // 전압·저항·공급률·Heat 효과는 poweredBase(분기별 출력)에 이미 반영됨
-  return c.poweredBase * c.clockModifier * c.wireEff * c.parallelBonus;
+  return c.poweredBase * c.clockModifier * c.wireEff * c.parallelBonus * (c.gateDiversityBonus||1);
 }
 function electricalBranchAt(circuit,x,y){
   if(!circuit?.electrical?.branches) return null;
@@ -2376,32 +3042,50 @@ function updateCapacitors(dt){
     }
   }
 }
-function activeFanCoolingMap(){
-  const cooling=new Map();
-  const anchors=[];
-  for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
-    if(isComponentAnchor(x,y)) anchors.push([x,y]);
+// 부착팬(2×2)의 앵커별 회전·냉각 세기. render()의 날개 애니메이션이 읽는다(틱마다 갱신).
+let fanSpinMap=new Map();
+// 부착팬은 회로 부품이 아니라 부품 위에 덮는 2×2 오버레이다. 덮은 4칸 중 통전 분기의
+// 공급률로 세기를 정하고(전력 연동), 세기>0이면 덮은 4칸 전부를 그 세기로 냉각한다.
+function fanCoveredCells(ax,ay){
+  const cells=[];
+  for(const [dx,dy] of [[0,0],[1,0],[0,1],[1,1]]){
+    const cx=ax+dx, cy=ay+dy;
+    if(cx<G.board.size && cy<G.board.size) cells.push([cx,cy]);
   }
-  for(const circuit of circuits){
-    if(!circuit.valid) continue;
-    for(const [x,y,name] of circuit.activeComps){
-      if(COMPONENTS[name]?.family!=='fan') continue;
-      const branch=electricalBranchAt(circuit,x,y);
-      if(!branch?.operating) continue;
-      const fanCells=componentCellsAt(x,y);
-      const strength=CircuitForgeCore.fanCoolingCoefficient(
-        branch.supplyRatio||0,FAN_DISSIPATION,
-      );
-      for(const [targetX,targetY] of anchors){
-        const distance=Math.min(...fanCells.map(([fanX,fanY])=>
-          Math.abs(targetX-fanX)+Math.abs(targetY-fanY)));
-        if(distance<=2){
-          const key=`${targetX},${targetY}`;
-          cooling.set(key,(cooling.get(key)||0)+strength);
-        }
+  return cells;
+}
+// (x,y)를 덮고 있는 부착팬 앵커(좌상단)를 찾는다. 후보 앵커는 (x,y),(x-1,y),(x,y-1),(x-1,y-1).
+function fanAnchorCovering(x,y){
+  for(const [ax,ay] of [[x,y],[x-1,y],[x,y-1],[x-1,y-1]]){
+    if(ax<0||ay<0) continue;
+    if(G.board.cells[idx(ax,ay)]?.fanAnchor) return [ax,ay];
+  }
+  return null;
+}
+function activeFanCoolingMap(activeBoardSink){
+  const cooling=new Map();
+  const spin=new Map();
+  for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+    if(!G.board.cells[idx(x,y)].fanAnchor) continue;
+    const covered=fanCoveredCells(x,y);
+    const ratios=[];
+    for(const [cx,cy] of covered){
+      const circuit=circuitAtComponent(cx,cy);
+      const branch=electricalBranchAt(circuit,cx,cy);
+      if(branch?.operating) ratios.push(branch.supplyRatio||0);
+      // 방출판(보드 히트싱크) 위 팬: 파이프로 연결된 소스가 작동 중이면 회전한다.
+      else if(activeBoardSink && activeBoardSink.has(`${cx},${cy}`)) ratios.push(1);
+    }
+    const strength=CircuitForgeCore.fanSpinStrength(ratios,FAN_DISSIPATION);
+    spin.set(`${x},${y}`,strength);
+    if(strength>0){
+      for(const [cx,cy] of covered){
+        const key=`${cx},${cy}`;
+        cooling.set(key,(cooling.get(key)||0)+strength);
       }
     }
   }
+  fanSpinMap=spin;
   return cooling;
 }
 function tripFuses(){
@@ -2479,10 +3163,95 @@ function updateWireTemperatures(dt){
   }
   return failed;
 }
+// 현실적 열흐름: 파이프 네트워크(pipeDirs 연결)가 소스(부품 부착 히트싱크)와 방출판(보드 히트싱크 plate)을 잇는다.
+// 직렬 전도 K_series = 1/(1/K_pipe + 1/K_plate). K_pipe=등급효율×파이프셀수, K_plate=plate크기 + (작동 시)팬.
+// 반환: { sourceBonus(소스앵커→방열계수), plateTemp(보드싱크칸→온도), activeBoardSink(작동 plate 칸 set) }.
+function computePipeNetworks(active){
+  const sourceBonus=new Map();
+  const plateTemp=new Map();
+  const activeBoardSink=new Set();
+  const ambient=G.board.ambientTemperature;
+  const size=G.board.size;
+  const visited=new Set();
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    if(!G.board.cells[idx(x,y)].pipe || visited.has(`${x},${y}`)) continue;
+    // pipeDirs(유저가 그은 방향)로만 연결된 파이프 네트워크 플러드필
+    const stack=[[x,y]]; const net=[]; visited.add(`${x},${y}`);
+    while(stack.length){
+      const [px,py]=stack.pop(); net.push([px,py]);
+      const a=G.board.cells[idx(px,py)];
+      for(const dir of DIRECTIONS){
+        const nx=px+dir.dx, ny=py+dir.dy;
+        if(!inBounds(nx,ny)) continue;
+        const nk=`${nx},${ny}`; if(visited.has(nk)) continue;
+        const b=G.board.cells[idx(nx,ny)];
+        if(b.pipe && ((a.pipeDirs||0)&dir.bit) && ((b.pipeDirs||0)&dir.oppositeBit)){ visited.add(nk); stack.push([nx,ny]); }
+      }
+    }
+    // 소스(부품 부착 히트싱크)·방출판 seed(보드싱크)·등급효율·파이프 칸 수.
+    // 파이프가 히트싱크 칸 "위에 직접 올라탄" 경우에만 연결로 본다(박아 넣기 — 인접만으론 연결 안 됨).
+    const sources=new Set(); const seeds=[]; let maxEff=0; const pipeCells=net.length;
+    for(const [px,py] of net){
+      const c=G.board.cells[idx(px,py)];
+      maxEff=Math.max(maxEff, pipeGradeEff(c.pipeGrade));
+      if(c.heatsink && c.comp && isComponentAnchor(px,py)) sources.add(`${px},${py}`);
+      if(c.boardHeatsink) seeds.push(`${px},${py}`);
+    }
+    // 방출판 plate: seed 보드싱크와 연결된 보드싱크 전체(병합 방열판이 클수록 방열↑)
+    const plate=new Set(); const ss=[];
+    for(const k of seeds){ if(!plate.has(k)){ plate.add(k); ss.push(k); } }
+    while(ss.length){
+      const [bx,by]=ss.pop().split(',').map(Number);
+      for(const {dx,dy} of DIRECTIONS){
+        const nx=bx+dx, ny=by+dy; if(!inBounds(nx,ny)) continue;
+        const nk=`${nx},${ny}`; if(plate.has(nk)) continue;
+        if(G.board.cells[idx(nx,ny)].boardHeatsink){ plate.add(nk); ss.push(nk); }
+      }
+    }
+    const S=sources.size, B=plate.size;
+    if(!S || !B) continue;                          // 소스나 방출판이 없으면 전달 없음
+    // 소스 작동 여부(연결 부품이 활성 회로에 있으면 작동) + 현재 온도
+    let anyOperating=false; const srcList=[];
+    for(const key of sources){
+      const [px,py]=key.split(',').map(Number);
+      const operating=Boolean(active.get(key)) && !G.board.cells[idx(px,py)].burned;
+      if(operating) anyOperating=true;
+      srcList.push({key, temp:Math.max(ambient, G.board.cells[idx(px,py)].temperature??ambient)});
+    }
+    // 네트워크가 작동 중이면 plate 위 팬이 회전(보드싱크 위 팬 작동) + 팬 방열 가산
+    let fanPlateCells=0;
+    if(anyOperating){
+      for(const k of plate){
+        activeBoardSink.add(k);
+        const [bx,by]=k.split(',').map(Number);
+        if(G.board.cells[idx(bx,by)].fan) fanPlateCells++;
+      }
+    }
+    const K_pipe = PIPE_K_PER_CELL * maxEff * Math.min(pipeCells, PIPE_CELLS_CAP);
+    const K_plate = B*PLATE_PASSIVE_K + fanPlateCells*PLATE_FAN_K;
+    const K_series = (K_pipe>0 && K_plate>0) ? 1/(1/K_pipe + 1/K_plate) : 0;
+    const perSource = Math.min(PIPE_MAX_BONUS, K_series/S);
+    let Q=0;
+    for(const s of srcList){
+      sourceBonus.set(s.key, (sourceBonus.get(s.key)||0)+perSource);
+      Q += perSource*Math.max(0, s.temp-ambient);
+    }
+    // 방출판 온도(정상상태 근사): 대기 + 유입열/방열계수
+    const pt = ambient + (K_plate>0 ? Q/K_plate : 0);
+    for(const k of plate) plateTemp.set(k, pt);
+  }
+  return {sourceBonus, plateTemp, activeBoardSink};
+}
 function updateComponentTemperatures(dt){
   const ambient=G.board.ambientTemperature;
   const active=activeThermalContext();
-  const fanCooling=activeFanCoolingMap();
+  const pipe=computePipeNetworks(active);
+  const fanCooling=activeFanCoolingMap(pipe.activeBoardSink);
+  // 보드 히트싱크(방출판) 온도 갱신 — 파이프로 유입된 열만큼 데워지고, 연결 없으면 대기온도.
+  for(let by=0;by<G.board.size;by++) for(let bx=0;bx<G.board.size;bx++){
+    const bc=G.board.cells[idx(bx,by)];
+    if(bc.boardHeatsink) bc.boardTemp=pipe.plateTemp.get(`${bx},${by}`) ?? ambient;
+  }
   let generationTotal=0, passiveTotal=0, sinkCoolingTotal=0;
   let hottest=ambient, temperatureSum=0, componentCount=0, hottestRate=0, failures=0;
   const failedComponents=[];
@@ -2501,16 +3270,19 @@ function updateComponentTemperatures(dt){
     const temperature=Math.max(ambient,cell.temperature??ambient);
     const delta=temperature-ambient;
     const passiveCooling=delta*0.015;
-    const sinkCooling=delta*((cell.heatsink ? HEATSINK_DISSIPATION : 0)
-      +(fanCooling.get(`${x},${y}`)||0));
-    const capacity=cell.heatsink ? 8 : 2;
-    let rate=(generation-passiveCooling-sinkCooling)/capacity;
+    const sinkCooling=delta*CircuitForgeCore.sinkDissipationCoefficient(
+      cell.heatsink, fanCooling.get(`${x},${y}`)||0, HEATSINK_DISSIPATION, HEATSINK_FAN_SYNERGY);
+    // 히트파이프 전도: 이 부품의 부착 히트싱크가 배관으로 방출판(보드 히트싱크)에 연결되면 추가 방열.
+    const pipeBonus=cell.heatsink ? (pipe.sourceBonus.get(`${x},${y}`)||0) : 0;
+    const pipeSinkCooling=delta*pipeBonus;
+    const capacity=(cell.heatsink&&cell.fan) ? 16 : (cell.heatsink||cell.fan) ? 10 : 2;
+    let rate=(generation-passiveCooling-sinkCooling-pipeSinkCooling)/capacity;
     if(temperature<=ambient && rate<0) rate=0;
     cell.temperature=Math.max(ambient,temperature+rate*dt);
 
     generationTotal+=generation;
     passiveTotal+=passiveCooling;
-    sinkCoolingTotal+=sinkCooling;
+    sinkCoolingTotal+=sinkCooling+pipeSinkCooling;
     temperatureSum+=cell.temperature;
     componentCount++;
     if(cell.temperature>hottest){
@@ -2938,22 +3710,165 @@ function compressBlueprintWithFlux(blueprintId){
   const blueprint=G.blueprints.find(item=>item.id===blueprintId);
   if(!blueprint) return;
   if(!spendFlux(CHIP_COMPRESSION_FLUX_COST,`${blueprint.name} Chip 압축`)) return;
+  ensureBlueprintAnalysis(blueprint);
+  const effects=CircuitForgeCore.processNodeEffects((G.processNode||{}).level||0);
   const stats=CircuitForgeCore.compressedChipStats({
     sourceRate:blueprint.sourceRate,
     sourceDemandAmps:blueprint.sourceDemandAmps??Math.max(.1,(blueprint.sourceRate||0)*.25),
     sourceHeat:blueprint.sourceHeat??Math.max(.05,(blueprint.sourceRate||0)*.1),
     sourceDepth:blueprint.sourceDepth,
+    processOutputMult:effects.chipOutputMult,
+    processHeatMult:effects.chipHeatMult,
+  });
+  const analysis=blueprint.analysis||{};
+  const quality=CircuitForgeCore.chipQuality({
+    blueprintGrade:analysis.grade||'working',
+    wireEfficiency:blueprint.sourceEfficiency||0,
+    maxTemp:analysis.maxTemp??blueprint.sourceMaxTemp??22,
+    outputPerCell:analysis.outputPerCell||0,
+    depth:stats.depth,
+    hadFault:false,
   });
   const chip={
     id:`chip-${G.nextChipId++}`,
     name:`${blueprint.name} Chip`.slice(0,40),
     ...stats,
+    heat:Math.max(.05,stats.heat*CircuitForgeCore.chipQualityHeatFactor(quality)),
+    quality,
+    architectureRole:'none',
     sourceBlueprintId:blueprint.id,
     createdAt:Date.now(),
   };
   G.chipInventory=[...(G.chipInventory||[]),chip];
   G.compressedBlueprintIds=[...new Set([...(G.compressedBlueprintIds||[]),blueprintId])];
-  toast(`${chip.name} 생성 · ${fmtCompute(chip.base)} base · 깊이 ${chip.depth}`);
+  const qLabel=CircuitForgeCore.CHIP_QUALITY_LABELS[quality]||quality;
+  toast(`${chip.name} 생성 · ${qLabel} · ${fmtCompute(chip.base)} base · 깊이 ${chip.depth}`);
+  buildBlueprints();
+  buildShop();
+  save();
+}
+const ALU_CHIP_FLUX_COST=18;
+// ALU 인증 Blueprint를 ALU Chip으로 생성한다. 일반 Chip보다 출력 보존이 좋고
+// architectureRole='alu' 태그가 붙어 향후 CPU Core 제작 재료가 된다.
+function createAluChip(blueprintId){
+  const blueprint=G.blueprints.find(item=>item.id===blueprintId);
+  if(!blueprint) return;
+  ensureBlueprintAnalysis(blueprint);
+  if(!(blueprint.certifiedModules||[]).includes('alu')){
+    toast('먼저 ALU Module로 인증하세요');
+    return;
+  }
+  if(!spendFlux(ALU_CHIP_FLUX_COST,`${blueprint.name} ALU Chip 생성`)) return;
+  const effects=CircuitForgeCore.processNodeEffects((G.processNode||{}).level||0);
+  const stats=CircuitForgeCore.compressedChipStats({
+    sourceRate:blueprint.sourceRate,
+    sourceDemandAmps:blueprint.sourceDemandAmps??Math.max(.1,(blueprint.sourceRate||0)*.25),
+    sourceHeat:blueprint.sourceHeat??Math.max(.05,(blueprint.sourceRate||0)*.1),
+    sourceDepth:blueprint.sourceDepth,
+    processOutputMult:effects.chipOutputMult,
+    processHeatMult:effects.chipHeatMult,
+  });
+  const analysis=blueprint.analysis||{};
+  const quality=CircuitForgeCore.chipQuality({
+    blueprintGrade:analysis.grade||'working',
+    wireEfficiency:blueprint.sourceEfficiency||0,
+    maxTemp:analysis.maxTemp??blueprint.sourceMaxTemp??22,
+    outputPerCell:analysis.outputPerCell||0,
+    depth:stats.depth,
+    hadFault:false,
+  });
+  const chip={
+    id:`chip-${G.nextChipId++}`,
+    name:`${blueprint.name} ALU`.slice(0,40),
+    ...stats,
+    base:CircuitForgeCore.aluChipBase(stats.base,blueprint.certGrades?.alu||'B'),
+    heat:Math.max(.05,stats.heat*CircuitForgeCore.certGradeHeatFactor(blueprint.certGrades?.alu||'B')),
+    quality,
+    architectureRole:'alu',
+    sourceBlueprintId:blueprint.id,
+    createdAt:Date.now(),
+  };
+  G.chipInventory=[...(G.chipInventory||[]),chip];
+  G.compressedBlueprintIds=[...new Set([...(G.compressedBlueprintIds||[]),blueprintId])];
+  toast(`ALU Chip 생성 · ${fmtCompute(chip.base)} base · 깊이 ${chip.depth}`);
+  log(`ALU Chip 생성 · ${chip.name} · ${fmtCompute(chip.base)} FLOPS (CPU Core 재료)`);
+  buildModuleLab();
+  buildBlueprints();
+  buildShop();
+  save();
+}
+const CPU_CORE_FLUX_COST=30;
+// CPU Core 인증 입력: 인증 Module 보유(메타) + 이 Blueprint의 성능
+function cpuCoreInput(blueprint){
+  const a=blueprint.analysis||{};
+  return {
+    modules:certifiedModuleCounts(),
+    output:a.output||0,
+    supplyRatio:a.supplyRatio||0,
+    maxTemp:a.maxTemp??22,
+  };
+}
+function certifyCpuCore(blueprintId){
+  const blueprint=G.blueprints.find(item=>item.id===blueprintId);
+  if(!blueprint) return;
+  ensureBlueprintAnalysis(blueprint);
+  if(!CircuitForgeCore.cpuCoreChecklist(cpuCoreInput(blueprint)).every(Boolean)){
+    toast('CPU Core 인증 조건 미달');
+    return;
+  }
+  if((blueprint.certifiedModules||[]).includes('cpu')) return;
+  blueprint.certifiedModules=[...new Set([...(blueprint.certifiedModules||[]),'cpu'])];
+  awardCertGrade(blueprint,'cpu');
+  toast(`${blueprint.name} → CPU Core 인증 · 등급 ${blueprint.certGrades?.cpu||'B'}`);
+  log(`CPU Core 인증 · ${blueprint.name} · Logic→Gate→ALU→CPU 사다리 완성`);
+  buildModuleLab();
+  buildBlueprints();
+  save();
+}
+// CPU Core Chip: ALU보다 출력 보존이 좋고 architectureRole='cpu' 태그가 붙는다.
+function createCpuCoreChip(blueprintId){
+  const blueprint=G.blueprints.find(item=>item.id===blueprintId);
+  if(!blueprint) return;
+  ensureBlueprintAnalysis(blueprint);
+  if(!(blueprint.certifiedModules||[]).includes('cpu')){
+    toast('먼저 CPU Core로 인증하세요');
+    return;
+  }
+  if(!spendFlux(CPU_CORE_FLUX_COST,`${blueprint.name} CPU Core Chip 생성`)) return;
+  const effects=CircuitForgeCore.processNodeEffects((G.processNode||{}).level||0);
+  const stats=CircuitForgeCore.compressedChipStats({
+    sourceRate:blueprint.sourceRate,
+    sourceDemandAmps:blueprint.sourceDemandAmps??Math.max(.1,(blueprint.sourceRate||0)*.25),
+    sourceHeat:blueprint.sourceHeat??Math.max(.05,(blueprint.sourceRate||0)*.1),
+    sourceDepth:blueprint.sourceDepth,
+    processOutputMult:effects.chipOutputMult,
+    processHeatMult:effects.chipHeatMult,
+  });
+  const analysis=blueprint.analysis||{};
+  const quality=CircuitForgeCore.chipQuality({
+    blueprintGrade:analysis.grade||'working',
+    wireEfficiency:blueprint.sourceEfficiency||0,
+    maxTemp:analysis.maxTemp??blueprint.sourceMaxTemp??22,
+    outputPerCell:analysis.outputPerCell||0,
+    depth:stats.depth,
+    hadFault:false,
+  });
+  const chip={
+    id:`chip-${G.nextChipId++}`,
+    name:`${blueprint.name} CPU`.slice(0,40),
+    ...stats,
+    base:CircuitForgeCore.cpuCoreChipBase(stats.base,blueprint.certGrades?.cpu||'B'),
+    heat:Math.max(.05,stats.heat*CircuitForgeCore.certGradeHeatFactor(blueprint.certGrades?.cpu||'B')),
+    quality,
+    architectureRole:'cpu',
+    sourceBlueprintId:blueprint.id,
+    createdAt:Date.now(),
+  };
+  G.chipInventory=[...(G.chipInventory||[]),chip];
+  G.compressedBlueprintIds=[...new Set([...(G.compressedBlueprintIds||[]),blueprintId])];
+  toast(`CPU Core Chip 생성 · ${fmtCompute(chip.base)} base · 깊이 ${chip.depth}`);
+  log(`CPU Core Chip 생성 · ${chip.name} · ${fmtCompute(chip.base)} FLOPS`);
+  buildModuleLab();
   buildBlueprints();
   buildShop();
   save();
@@ -2994,6 +3909,7 @@ function blueprintFromCircuit(circuit,name){
     on:cell.on!==false,
     resistorMode:cell.resistorMode||null,
     heatsink:Boolean(cell.heatsink),
+    fan:Boolean(cell.fan),
     chipData:componentName==='chip' ? cloneData(cell.chipData) : null,
   }));
   const wires=wireCells.map(({x,y,cell})=>{
@@ -3019,23 +3935,104 @@ function blueprintFromCircuit(circuit,name){
   },0);
   const sourceDepth=circuit.activeComps.reduce((max,[x,y,name])=>
     name==='chip'?Math.max(max,chipDataAt(x,y)?.depth||1):max,0);
+  const sourceMaxTemp=circuit.activeComps.reduce((max,[x,y])=>
+    Math.max(max,componentStateAt(x,y)?.temperature||22),22);
+  const width=maxX-minX+1, height=maxY-minY+1;
+  const area=Math.max(1,width*height);
+  const componentCounts={};
+  let heatsinkCount=0,fuseCount=0,fanCount=0,gateCount=0,registerCount=0;
+  const gateTypes=new Set();
+  for(const comp of components){
+    const def=COMPONENTS[comp.name];
+    const kind=def?.kind||comp.name;
+    componentCounts[kind]=(componentCounts[kind]||0)+1;
+    if(comp.heatsink) heatsinkCount++;
+    if(comp.fan) fanCount++;
+    if(def?.family==='fuse') fuseCount++;
+    if(def?.family==='gate'){ gateCount++; gateTypes.add(comp.name); }
+    if(def?.family==='register') registerCount++;
+  }
+  const moduleCounts={
+    compute:componentCounts.compute||0,
+    clock:componentCounts.clock||0,
+    power:componentCounts.power||0,
+    fuse:fuseCount,
+    heatsink:heatsinkCount,
+    fan:fanCount,
+    gate:gateCount,
+    gateTypes:gateTypes.size,
+    register:registerCount,
+  };
+  const wireEfficiency=circuit.wireEff||0;
+  const sourceRate=circuit.rate||0;
+  const outputPerCell=sourceRate/area;
+  const roleGuess=CircuitForgeCore.roleGuessFromCounts(componentCounts);
+  const grade=CircuitForgeCore.blueprintGrade({
+    wireEfficiency,maxTemp:sourceMaxTemp,outputPerCell,hadFault:false,
+  });
   return {
     id,
     name:(name||`Blueprint ${G.blueprints.length+1}`).trim().slice(0,40)
       ||`Blueprint ${G.blueprints.length+1}`,
-    width:maxX-minX+1,
-    height:maxY-minY+1,
+    width,
+    height,
     components,
     wires,
     voltage:G.circuitVoltage||'12v',
     createdAt:Date.now(),
-    sourceEfficiency:circuit.wireEff||0,
-    sourceRate:circuit.rate||0,
+    sourceEfficiency:wireEfficiency,
+    sourceRate,
     sourceDemandAmps:circuit.electrical?.totalDemandAmps||0,
     sourceHeat,
     sourceDepth,
-    version:1,
+    sourceMaxTemp,
+    analysis:{
+      area,output:sourceRate,outputPerCell,maxTemp:sourceMaxTemp,
+      wireEfficiency,supplyRatio:circuit.electrical?.supplyRatio||0,
+      componentCounts,moduleCounts,roleGuess,grade,
+    },
+    certifiedModules:[],
+    certGrades:{},
+    version:2,
   };
+}
+// 구버전 Blueprint(분석 없음)를 저장된 source* 값으로 lazy 보완한다.
+function ensureBlueprintAnalysis(bp){
+  if(!bp) return bp;
+  if(!Array.isArray(bp.certifiedModules)) bp.certifiedModules=[];
+  // Junction 폐지: 저장된 Blueprint의 Junction 부품 → 4방향 전선으로 변환(연결 유지, 미존재 부품 참조 방지).
+  if(Array.isArray(bp.components) && bp.components.some(c=>c.name==='junction')){
+    const junctions=bp.components.filter(c=>c.name==='junction');
+    bp.components=bp.components.filter(c=>c.name!=='junction');
+    if(!Array.isArray(bp.wires)) bp.wires=[];
+    for(const j of junctions){
+      if(!bp.wires.some(w=>w.x===j.x&&w.y===j.y)) bp.wires.push({x:j.x,y:j.y,wireDirs:15,wireGrade:0});
+    }
+  }
+  // 인증 등급(재미 깊이): 기존 인증 Blueprint는 'B'(=기존 고정 배율)로 보강해 밸런스 불변.
+  if(!bp.certGrades||typeof bp.certGrades!=='object') bp.certGrades={};
+  for(const m of bp.certifiedModules){
+    if((m==='alu'||m==='cpu') && !bp.certGrades[m]) bp.certGrades[m]='B';
+  }
+  if(bp.analysis){
+    if(!bp.analysis.moduleCounts) bp.analysis.moduleCounts={};
+    return bp;
+  }
+  const area=Math.max(1,(bp.width||1)*(bp.height||1));
+  const sourceRate=bp.sourceRate||0;
+  const wireEfficiency=bp.sourceEfficiency||0;
+  const outputPerCell=sourceRate/area;
+  // 구버전엔 최고 온도 기록이 없다 → 알 수 없으므로 안전하게 22(미평가)로 둔다.
+  const maxTemp=bp.sourceMaxTemp??22;
+  bp.analysis={
+    area,output:sourceRate,outputPerCell,maxTemp,
+    wireEfficiency,supplyRatio:0,componentCounts:{},moduleCounts:{},
+    roleGuess:'unknown',
+    grade:CircuitForgeCore.blueprintGrade({wireEfficiency,maxTemp,outputPerCell,hadFault:false}),
+  };
+  if(!Array.isArray(bp.certifiedModules)) bp.certifiedModules=[];
+  bp.version=2;
+  return bp;
 }
 function saveCircuitBlueprint(circuitIndex,name){
   const limit=blueprintSlotLimit();
@@ -3306,13 +4303,414 @@ function blueprintInventorySummary(blueprint){
   return parts.join(' · ');
 }
 function blueprintChipEstimate(blueprint){
+  const effects=CircuitForgeCore.processNodeEffects((G.processNode||{}).level||0);
   const stats=CircuitForgeCore.compressedChipStats({
     sourceRate:blueprint.sourceRate||0,
     sourceDemandAmps:blueprint.sourceDemandAmps??Math.max(.1,(blueprint.sourceRate||0)*.25),
     sourceHeat:blueprint.sourceHeat??Math.max(.05,(blueprint.sourceRate||0)*.1),
     sourceDepth:blueprint.sourceDepth||0,
+    processOutputMult:effects.chipOutputMult,
+    processHeatMult:effects.chipHeatMult,
   });
-  return `예상 Chip ${fmtCompute(stats.base)} base · ${stats.requiresAmps.toFixed(2)}A · Heat ${stats.heat.toFixed(2)} · 깊이 ${stats.depth}`;
+  const analysis=blueprint.analysis||{};
+  const quality=CircuitForgeCore.chipQuality({
+    blueprintGrade:analysis.grade||'working',
+    wireEfficiency:blueprint.sourceEfficiency||0,
+    maxTemp:analysis.maxTemp??blueprint.sourceMaxTemp??22,
+    outputPerCell:analysis.outputPerCell||0,
+    depth:stats.depth,
+  });
+  const qLabel=CircuitForgeCore.CHIP_QUALITY_LABELS[quality]||quality;
+  const estHeat=Math.max(.05,stats.heat*CircuitForgeCore.chipQualityHeatFactor(quality));
+  return `예상 Chip ${qLabel} · ${fmtCompute(stats.base)} base · ${stats.requiresAmps.toFixed(2)}A · Heat ${estHeat.toFixed(2)} · 깊이 ${stats.depth}`;
+}
+function blueprintGradeLine(blueprint){
+  const a=blueprint.analysis;
+  if(!a) return '';
+  const gLabel=CircuitForgeCore.BLUEPRINT_GRADE_LABELS[a.grade]||a.grade;
+  const tempStr=a.maxTemp>22?` · 최고 ${a.maxTemp.toFixed(0)}°C`:'';
+  return `등급 ${gLabel} · ${(a.outputPerCell||0).toFixed(1)} FLOPS/cell · 효율 ${((a.wireEfficiency||0)*100).toFixed(1)}%${tempStr}`;
+}
+// Blueprint 분석을 Module 인증 입력으로 변환한다.
+function blueprintModuleInput(blueprint){
+  const a=blueprint.analysis||{};
+  const mc=a.moduleCounts||{};
+  return {
+    output:a.output||0,maxTemp:a.maxTemp??22,supplyRatio:a.supplyRatio||0,
+    wireEfficiency:a.wireEfficiency||0,
+    computeCount:mc.compute||0,clockCount:mc.clock||0,powerCount:mc.power||0,
+    fuseCount:mc.fuse||0,heatsinkCount:mc.heatsink||0,fanCount:mc.fan||0,
+    gateCount:mc.gate||0,registerCount:mc.register||0,
+  };
+}
+// 인증 등급 채점 임계: ALU/CPU 각 최소 조건(= moduleChecklist/cpuCoreChecklist와 일치).
+const ARCH_CERT_THRESHOLDS={
+  alu:{outputMin:500,supplyMin:0.90,tempMax:90},
+  cpu:{outputMin:CircuitForgeCore.CPU_CORE_OUTPUT_MIN,supplyMin:0.95,tempMax:85},
+};
+// 이 Blueprint를 kind('alu'|'cpu')로 인증할 때의 예상 등급/점수.
+function architectureCertGrade(blueprint,kind){
+  const a=blueprint?.analysis||{};
+  const mc=a.moduleCounts||{};
+  const t=ARCH_CERT_THRESHOLDS[kind]||ARCH_CERT_THRESHOLDS.alu;
+  const parts=CircuitForgeCore.architectureCertScore({
+    output:a.output||0,outputMin:t.outputMin,
+    supplyRatio:a.supplyRatio||0,supplyMin:t.supplyMin,
+    maxTemp:a.maxTemp??22,tempMax:t.tempMax,
+    gateCount:mc.gate||0,registerCount:mc.register||0,
+  });
+  return {grade:CircuitForgeCore.certGrade(parts.total),total:parts.total,parts,thresholds:t};
+}
+// 인증 시 등급을 Blueprint에 고정 저장하고, 첫 A/S 달성에 과설계 보상 ✦를 준다.
+function awardCertGrade(blueprint,kind){
+  const {grade}=architectureCertGrade(blueprint,kind);
+  blueprint.certGrades=blueprint.certGrades||{};
+  blueprint.certGrades[kind]=grade;
+  const bonus=grade==='S'?6:grade==='A'?3:0;
+  if(bonus>0) awardFlux(bonus,`${blueprint.name} ${kind.toUpperCase()} ${grade}등급 인증`);
+  return grade;
+}
+function certifyBlueprintModule(blueprintId,moduleType){
+  const blueprint=G.blueprints.find(item=>item.id===blueprintId);
+  if(!blueprint) return;
+  ensureBlueprintAnalysis(blueprint);
+  const checks=CircuitForgeCore.moduleChecklist(blueprintModuleInput(blueprint));
+  if(!checks[moduleType]?.every(Boolean)){
+    toast(`${CircuitForgeCore.MODULE_DEFS[moduleType]?.label||moduleType} 인증 조건 미달`);
+    return;
+  }
+  if((blueprint.certifiedModules||[]).includes(moduleType)) return;
+  blueprint.certifiedModules=[...new Set([...(blueprint.certifiedModules||[]),moduleType])];
+  if(moduleType==='alu') awardCertGrade(blueprint,'alu');
+  const label=CircuitForgeCore.MODULE_DEFS[moduleType]?.label||moduleType;
+  const gradeNote=moduleType==='alu'?` · 등급 ${blueprint.certGrades?.alu||'B'}`:'';
+  toast(`${blueprint.name} → ${label} 인증${gradeNote}`);
+  log(`Module 인증 · ${blueprint.name} = ${label}`);
+  buildModuleLab();
+  buildBlueprints();
+  save();
+}
+// 인증 등급 뱃지(D~S) — Tape-out 등급 색 톤 재사용.
+const CERT_GRADE_COLORS={D:'#c97f7f',C:'#c9b27f',B:'#9ac97f',A:'#7fd9c0',S:'#9ad0ff'};
+function certGradeBadge(grade,label='등급'){
+  const c=CERT_GRADE_COLORS[grade]||'#888';
+  return `<span title="인증 ${label} ${grade}" style="display:inline-block;min-width:18px;text-align:center;font-weight:700;color:#0c1116;background:${c};border-radius:4px;padding:1px 6px">${grade}</span>`;
+}
+// 인증 채점 4축 마진 바(출력/공급/열여유/다양성) — "얼마나 초과했나"를 시각화.
+function certScoreBars(parts){
+  const segs=[
+    ['출력 마진',parts.outputScore,30,'#7fb0d9'],
+    ['공급 여유',parts.supplyScore,15,'#7fd99a'],
+    ['열 여유',parts.tempScore,15,'#d9c27f'],
+    ['설계 다양성',parts.diversityScore,10,'#c79ad0'],
+  ];
+  const rows=segs.map(([label,val,max,color])=>{
+    const pct=Math.round(Math.min(1,Math.max(0,val/max))*100);
+    return `<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)">
+      <span style="width:64px;flex-shrink:0">${label}</span>
+      <span style="flex:1;height:6px;background:#1a232b;border-radius:3px;overflow:hidden">
+        <span style="display:block;height:100%;width:${pct}%;background:${color}"></span></span>
+      <span style="width:30px;text-align:right">${Math.round(val)}/${max}</span>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;flex-direction:column;gap:3px;margin-top:6px">${rows}</div>`;
+}
+// 미충족 인증 조건에 "어떻게 고칠지" 처방 한 줄(실행형 진단).
+function reqRemedy(reqText=''){
+  if(/온도/.test(reqText)) return 'Heatsink/Fan 부착 · Clock 등급↓ · 16V 회피';
+  if(/공급률/.test(reqText)) return 'PSU 증설 · Capacitor 보강 · 부품 수↓';
+  if(/효율/.test(reqText)) return '배선 단축 · 상위 배선 등급';
+  if(/출력/.test(reqText)) return 'Clock 등급↑ · Logic/Gate 추가 · 전압↑';
+  if(/Gate/.test(reqText)) return 'NAND/NOR/XOR 등 Gate 2종↑ 배치';
+  if(/Register|Latch|Flip/.test(reqText)) return 'Register/Latch 부품 배치';
+  if(/Clock/.test(reqText)) return 'Clock 부품 배치';
+  if(/Power|PSU/.test(reqText)) return 'PSU(전원) 부품 배치';
+  if(/Module/.test(reqText)) return '먼저 해당 Module 인증';
+  return '';
+}
+// 조건 한 줄: ✓/✗ + (미충족 시) 처방 힌트.
+function reqLineHtml(reqText,ok){
+  const remedy=ok?'':reqRemedy(reqText);
+  return `<span style="color:${ok?'#7fd99a':'#c97f7f'}">${ok?'✓':'✗'} ${escapeHtml(reqText)}`
+    +(remedy?` <span style="color:var(--muted)">→ ${escapeHtml(remedy)}</span>`:'')+`</span>`;
+}
+function buildModuleLab(){
+  const container=document.getElementById('tabModuleLab');
+  if(!container) return;
+  let html=`<h3>Module Lab</h3>
+    <div class="blueprint-meta" style="line-height:1.6">저장된 Blueprint를 역할별 Module로 인증합니다. 인증 조건을 모두 만족하면 인증할 수 있고, 인증 상태는 Blueprint에 영구 저장됩니다. ALU·CPU 인증은 최소 조건을 넘긴 정도에 따라 <strong>D~S 등급</strong>이 매겨지고, 등급이 높을수록 Chip 출력 배율이 커집니다.</div>`;
+  const certifiedTotals={};
+  for(const bp of G.blueprints) for(const m of (bp.certifiedModules||[]))
+    certifiedTotals[m]=(certifiedTotals[m]||0)+1;
+  html+='<div class="blueprint-meta" style="margin:6px 0">인증 현황 · '
+    +CircuitForgeCore.MODULE_ORDER.map(m=>
+      `${CircuitForgeCore.MODULE_DEFS[m].label.replace(' Module','')} ${certifiedTotals[m]||0}`).join(' · ')+'</div>';
+  if(!G.blueprints.length){
+    html+='<div class="blueprint-meta">저장된 Blueprint가 없습니다. Blueprints 탭에서 유효 회로를 저장하세요.</div>';
+    container.innerHTML=html;
+    return;
+  }
+  html+=G.blueprints.map(bp=>{
+    ensureBlueprintAnalysis(bp);
+    const input=blueprintModuleInput(bp);
+    const checks=CircuitForgeCore.moduleChecklist(input);
+    const eligible=CircuitForgeCore.moduleEligibility(input);
+    const certified=bp.certifiedModules||[];
+    const roleLabel=CircuitForgeCore.ROLE_GUESS_LABELS[bp.analysis?.roleGuess]||'미분류';
+    const moduleRows=CircuitForgeCore.MODULE_ORDER.map(m=>{
+      const def=CircuitForgeCore.MODULE_DEFS[m];
+      const reqList=def.reqs.map((r,i)=>reqLineHtml(r,checks[m][i])).join('<br>');
+      const isCertified=certified.includes(m);
+      const btn=isCertified
+        ? `<button disabled>인증됨 ✓</button>`
+        : `<button class="primary" data-certify="${bp.id}" data-module="${m}" ${eligible[m]?'':'disabled'}>인증</button>`;
+      return `<div class="module-row" style="border:1px solid #1d2730;border-radius:5px;padding:8px;margin-top:6px;background:${isCertified?'#13251a':'#10171c'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong>${escapeHtml(def.label)}</strong>${btn}
+        </div>
+        <div class="blueprint-meta" style="margin-top:4px;line-height:1.6">${reqList}</div>
+      </div>`;
+    }).join('');
+    return `<div class="blueprint-card" data-module-bp="${bp.id}">
+      <div><strong>${escapeHtml(bp.name)}</strong>
+        <div class="blueprint-meta">추정 역할: ${escapeHtml(roleLabel)} · 출력 ${fmtCompute(input.output)}/s · 최고 ${(input.maxTemp).toFixed(0)}°C · 공급률 ${(input.supplyRatio*100).toFixed(0)}%</div>
+      </div>
+      ${moduleRows}
+    </div>`;
+  }).join('');
+  html+=buildAluSection();
+  html+=buildCpuSection();
+  html+=buildIpRegistrationSection();
+  container.innerHTML=html;
+  container.querySelectorAll('[data-certify]').forEach(button=>{
+    button.onclick=()=>certifyBlueprintModule(button.dataset.certify,button.dataset.module);
+  });
+  container.querySelectorAll('[data-create-alu-chip]').forEach(button=>{
+    button.onclick=()=>createAluChip(button.dataset.createAluChip);
+  });
+  container.querySelectorAll('[data-certify-cpu]').forEach(button=>{
+    button.onclick=()=>certifyCpuCore(button.dataset.certifyCpu);
+  });
+  container.querySelectorAll('[data-create-cpu-chip]').forEach(button=>{
+    button.onclick=()=>createCpuCoreChip(button.dataset.createCpuChip);
+  });
+  container.querySelectorAll('[data-register-ip]').forEach(button=>{
+    button.onclick=()=>registerBlueprintAsIp(button.dataset.registerIp);
+  });
+}
+// CPU Core 제작 전용 섹션 (개선점 P3-1) — Logic→Gate→ALU→CPU 사다리의 정점
+function buildCpuSection(){
+  const reqs=CircuitForgeCore.CPU_CORE_REQS;
+  const certCounts=certifiedModuleCounts();
+  let html=`<h3 style="margin-top:18px">CPU Core 제작</h3>
+    <div class="blueprint-meta" style="line-height:1.6">ALU·Register·Clock·Power Module을 모두 인증하고, 총 출력 ${fmtCompute(CircuitForgeCore.CPU_CORE_OUTPUT_MIN)} 이상·공급률 95%·85°C 이하 회로를 만들면 CPU Core로 인증할 수 있습니다. 최소 조건을 넘긴 정도에 따라 <strong>D~S 등급</strong>이 매겨지고 CPU Core Chip 출력 배율이 ×1.70~2.40로 달라집니다(B=×2.0). 첫 A/S 인증엔 ✦ 보너스. (✦${CPU_CORE_FLUX_COST})</div>
+    <div class="blueprint-meta" style="margin:4px 0">보유 인증 Module · ALU ${certCounts.alu||0} · Register ${certCounts.register||0} · Clock ${certCounts.clock||0} · Power ${certCounts.power||0}</div>`;
+  if(!G.blueprints.length){
+    html+='<div class="blueprint-meta">저장된 Blueprint가 없습니다.</div>';
+    return html;
+  }
+  html+=G.blueprints.map(bp=>{
+    ensureBlueprintAnalysis(bp);
+    const input=cpuCoreInput(bp);
+    const checks=CircuitForgeCore.cpuCoreChecklist(input);
+    const ok=checks.every(Boolean);
+    const certified=(bp.certifiedModules||[]).includes('cpu');
+    const reqList=reqs.map((r,i)=>reqLineHtml(r,checks[i])).join('<br>');
+    const certInfo=architectureCertGrade(bp,'cpu');
+    const grade=certified?(bp.certGrades?.cpu||'B'):certInfo.grade;
+    const mult=CircuitForgeCore.certGradeMultiplier(grade,'cpu');
+    const gradeNote=certified
+      ? `달성 ${certGradeBadge(grade)} · Chip ×${mult.toFixed(2)}`
+      : (ok?`예상 ${certGradeBadge(grade)} · 인증 시 Chip ×${mult.toFixed(2)}`:'조건 미달');
+    const certifyBtn=certified
+      ? `<button disabled>CPU 인증됨 ✓</button>`
+      : `<button class="primary" data-certify-cpu="${bp.id}" ${ok?'':'disabled'}>CPU Core 인증</button>`;
+    const chipBtn=certified
+      ? `<button data-create-cpu-chip="${bp.id}" ${G.flux<CPU_CORE_FLUX_COST?'disabled':''}>CPU Chip 생성 · ✦ ${CPU_CORE_FLUX_COST}</button>`
+      : '';
+    return `<div class="blueprint-card" style="border-color:${certified?'#2d4a5c':'#2a3138'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><strong>${escapeHtml(bp.name)}</strong>
+          <div class="blueprint-meta">출력 ${fmtCompute(input.output)}/s · 공급률 ${(input.supplyRatio*100).toFixed(0)}% · 최고 ${input.maxTemp.toFixed(0)}°C</div>
+          <div class="blueprint-meta" style="margin-top:3px">${gradeNote}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">${certifyBtn}${chipBtn}</div>
+      </div>
+      ${(ok||certified)?certScoreBars(certInfo.parts):''}
+      <div class="blueprint-meta" style="margin-top:6px;line-height:1.7">${reqList}</div>
+    </div>`;
+  }).join('');
+  return html;
+}
+// ALU 인증/Chip 전용 섹션 (개선점 P2-5) — Logic→Gate→ALU 사다리의 마일스톤
+function buildAluSection(){
+  let html=`<h3 style="margin-top:18px">ALU 제작</h3>
+    <div class="blueprint-meta" style="line-height:1.6">Gate 2종+Register+Clock으로 출력 500 FLOPS 이상 회로를 만들면 ALU Module로 인증할 수 있습니다. 최소 조건을 넘긴 정도에 따라 <strong>D~S 등급</strong>이 매겨지고 ALU Chip 출력 배율이 ×1.30~1.70로 달라집니다(B=×1.45). 첫 A/S 인증엔 ✦ 보너스. 인증 Chip(✦ ${ALU_CHIP_FLUX_COST})은 CPU Core의 재료가 됩니다.</div>`;
+  if(!G.blueprints.length){
+    html+='<div class="blueprint-meta">저장된 Blueprint가 없습니다.</div>';
+    return html;
+  }
+  const def=CircuitForgeCore.MODULE_DEFS.alu;
+  html+=G.blueprints.map(bp=>{
+    ensureBlueprintAnalysis(bp);
+    const input=blueprintModuleInput(bp);
+    const checks=CircuitForgeCore.moduleChecklist(input).alu;
+    const ok=checks.every(Boolean);
+    const certified=(bp.certifiedModules||[]).includes('alu');
+    const reqList=def.reqs.map((r,i)=>reqLineHtml(r,checks[i])).join('<br>');
+    const certInfo=architectureCertGrade(bp,'alu');
+    const grade=certified?(bp.certGrades?.alu||'B'):certInfo.grade;
+    const mult=CircuitForgeCore.certGradeMultiplier(grade,'alu');
+    const gradeNote=certified
+      ? `달성 ${certGradeBadge(grade)} · Chip ×${mult.toFixed(2)}`
+      : (ok?`예상 ${certGradeBadge(grade)} · 인증 시 Chip ×${mult.toFixed(2)}`:'조건 미달');
+    const certifyBtn=certified
+      ? `<button disabled>ALU 인증됨 ✓</button>`
+      : `<button class="primary" data-certify="${bp.id}" data-module="alu" ${ok?'':'disabled'}>ALU Module 인증</button>`;
+    const chipBtn=certified
+      ? `<button data-create-alu-chip="${bp.id}" ${G.flux<ALU_CHIP_FLUX_COST?'disabled':''}>ALU Chip 생성 · ✦ ${ALU_CHIP_FLUX_COST}</button>`
+      : '';
+    return `<div class="blueprint-card" style="border-color:${certified?'#3a5c2d':'#2a3138'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><strong>${escapeHtml(bp.name)}</strong>
+          <div class="blueprint-meta">출력 ${fmtCompute(input.output)}/s · Gate ${input.gateCount}종합 · Reg ${input.registerCount} · 효율 ${(input.wireEfficiency*100).toFixed(0)}%</div>
+          <div class="blueprint-meta" style="margin-top:3px">${gradeNote}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">${certifyBtn}${chipBtn}</div>
+      </div>
+      ${(ok||certified)?certScoreBars(certInfo.parts):''}
+      <div class="blueprint-meta" style="margin-top:6px;line-height:1.7">${reqList}</div>
+    </div>`;
+  }).join('');
+  return html;
+}
+// ---- 2차 업데이트: IP 등록 (개선점 P1-5) -------------------------------
+const IP_ICON='❖';
+const IP_COLOR='#c9a6ff';
+function ipShopCost(ip){
+  return Math.max(40,Math.round((ip.baseOutput||0)*15));
+}
+// 등록된 IP를 1×1 Compute 부품으로 카탈로그에 주입한다. componentStatAt이
+// base/requiresAmps를 읽어 일반 Compute 경로(출력·전류)를 그대로 재사용한다.
+function registerIpComponents(){
+  for(const ip of G.registeredIP||[]){
+    COMPONENTS[ip.id]={
+      name:ip.name, icon:IP_ICON, color:IP_COLOR, cost:ipShopCost(ip),
+      vl:0, vr:1, ohm:0, base:ip.baseOutput, requiresAmps:ip.requiresAmps,
+      heatProfile:1, heat:ip.heat,
+      kind:'compute', family:'ip', polarized:true, failureMode:'short', isIp:true,
+      ipType:ip.ipType, quality:ip.quality,
+      terminals:{ input:'W', output:'E' },
+      category:'커스텀 IP',
+      role:`${CircuitForgeCore.IP_TYPE_LABELS[ip.ipType]||'IP'} · 등록된 영구 부품`,
+      effect:`${fmtCompute(ip.baseOutput)} FLOPS · 요구 ${ip.requiresAmps.toFixed(2)}A`,
+      requirement:'IP 등록', tip:'검증된 Blueprint를 1×1로 굳힌 영구 부품입니다. 일반 부품처럼 반복 배치할 수 있습니다.',
+    };
+  }
+}
+function blueprintIpInput(blueprint){
+  return {
+    sourceRate:blueprint.sourceRate||0,
+    sourceDemandAmps:blueprint.sourceDemandAmps??Math.max(.1,(blueprint.sourceRate||0)*.25),
+    sourceHeat:blueprint.sourceHeat??Math.max(.05,(blueprint.sourceRate||0)*.1),
+  };
+}
+function blueprintIpEligibility(blueprint){
+  ensureBlueprintAnalysis(blueprint);
+  return CircuitForgeCore.ipRegistrationEligible({
+    bestGrade:G.bestTapeoutGrade,
+    blueprintGrade:blueprint.analysis?.grade||'working',
+    area:(blueprint.width||1)*(blueprint.height||1),
+    alreadyRegistered:(G.registeredIP||[]).some(ip=>ip.sourceBlueprintId===blueprint.id),
+    slotsUsed:(G.registeredIP||[]).length,
+    slotLimit:CircuitForgeCore.IP_SLOT_LIMIT,
+  });
+}
+function registerBlueprintAsIp(blueprintId){
+  const blueprint=G.blueprints.find(item=>item.id===blueprintId);
+  if(!blueprint) return;
+  const elig=blueprintIpEligibility(blueprint);
+  if(!elig.ok){
+    const reason=!elig.gradeOK?'Tape-out B등급 이상 필요'
+      :!elig.bpOK?'Blueprint 등급 Stable 이상 필요'
+      :!elig.sizeOK?`Blueprint 면적 ${CircuitForgeCore.IP_MAX_AREA}칸 이하만 가능`
+      :elig.alreadyRegistered?'이미 IP로 등록됨'
+      :`IP 슬롯 가득 참 (${CircuitForgeCore.IP_SLOT_LIMIT}개)`;
+    toast(`IP 등록 불가 · ${reason}`);
+    return;
+  }
+  const effects=CircuitForgeCore.processNodeEffects((G.processNode||{}).level||0);
+  const stats=CircuitForgeCore.ipStatsFromBlueprint({
+    ...blueprintIpInput(blueprint),
+    processOutputMult:effects.chipOutputMult,
+    processHeatMult:effects.chipHeatMult,
+  });
+  const ipType=CircuitForgeCore.ipTypeFromRole(blueprint.analysis?.roleGuess);
+  const ip=CircuitForgeCore.normalizeIp({
+    id:`ip-${G.nextIpId++}`,
+    name:`${blueprint.name} IP`.slice(0,40),
+    ipType,
+    baseOutput:stats.baseOutput,
+    requiresAmps:stats.requiresAmps,
+    heat:stats.heat,
+    quality:blueprint.analysis?.grade==='production'?'golden':'efficient',
+    sourceBlueprintId:blueprint.id,
+    processNodeCreatedAt:(G.processNode||{}).level||0,
+    createdAt:Date.now(),
+  });
+  G.registeredIP=[...(G.registeredIP||[]),ip];
+  registerIpComponents();
+  const label=CircuitForgeCore.IP_TYPE_LABELS[ip.ipType]||'IP';
+  toast(`IP 등록 · ${ip.name} (${label})`);
+  log(`Custom IP 등록 · ${ip.name} · ${fmtCompute(ip.baseOutput)} FLOPS / ${ip.requiresAmps.toFixed(2)}A · Shop에 추가`);
+  buildModuleLab();
+  buildShop();
+  save();
+}
+function buildIpRegistrationSection(){
+  const slotLimit=CircuitForgeCore.IP_SLOT_LIMIT;
+  const registered=G.registeredIP||[];
+  const rank=CircuitForgeCore.TAPEOUT_GRADE_RANK;
+  const unlocked=rank[G.bestTapeoutGrade]>=rank.B;
+  let html=`<h3 style="margin-top:18px">Custom IP 등록</h3>
+    <div class="blueprint-meta" style="line-height:1.6">우수 Blueprint(Stable 등급 이상, 면적 ${CircuitForgeCore.IP_MAX_AREA}칸 이하)를 영구 부품으로 등록합니다. 등록한 IP는 Shop의 [커스텀 IP]에서 일반 부품처럼 반복 배치할 수 있고, 원본 Blueprint를 삭제해도 유지됩니다. (슬롯 ${registered.length}/${slotLimit})</div>`;
+  if(!unlocked){
+    html+=`<div class="blueprint-warning">Tape-out B등급 이상을 달성하면 IP 등록이 열립니다. (현재 최고 등급: ${G.bestTapeoutGrade?`${G.bestTapeoutGrade} — ${CircuitForgeCore.TAPEOUT_GRADE_LABELS[G.bestTapeoutGrade]}`:'없음'})</div>`;
+  }
+  if(registered.length){
+    html+='<div class="blueprint-meta" style="margin-top:6px">등록된 IP</div>'
+      +registered.map(ip=>`<div class="blueprint-card" style="border-color:#3a2d5c">
+        <div class="blueprint-head"><span style="font-size:20px;color:${IP_COLOR}">${IP_ICON}</span>
+          <div><strong>${escapeHtml(ip.name)}</strong>
+          <div class="blueprint-meta">${CircuitForgeCore.IP_TYPE_LABELS[ip.ipType]||'IP'} · ${fmtCompute(ip.baseOutput)} FLOPS · ${ip.requiresAmps.toFixed(2)}A · Heat ${ip.heat.toFixed(2)}</div></div>
+        </div></div>`).join('');
+  }
+  if(unlocked){
+    const candidates=(G.blueprints||[]).filter(bp=>{
+      ensureBlueprintAnalysis(bp);
+      const e=blueprintIpEligibility(bp);
+      return e.ok || e.alreadyRegistered;
+    });
+    html+='<div class="blueprint-meta" style="margin-top:8px">등록 가능한 Blueprint</div>';
+    if(!candidates.length){
+      html+='<div class="blueprint-meta">조건을 만족하는 Blueprint가 없습니다. (Stable 등급 이상 · 면적 작음)</div>';
+    }else{
+      html+=candidates.map(bp=>{
+        const e=blueprintIpEligibility(bp);
+        const gLabel=CircuitForgeCore.BLUEPRINT_GRADE_LABELS[bp.analysis?.grade]||bp.analysis?.grade||'';
+        const btn=e.alreadyRegistered
+          ? `<button disabled>등록됨 ✓</button>`
+          : `<button class="primary" data-register-ip="${bp.id}" ${e.ok?'':'disabled'}>IP 등록</button>`;
+        return `<div class="blueprint-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <div><strong>${escapeHtml(bp.name)}</strong>
+              <div class="blueprint-meta">${gLabel} · ${bp.width}×${bp.height} · 원본 ${fmtCompute(bp.sourceRate)}/s</div>
+            </div>${btn}
+          </div></div>`;
+      }).join('');
+    }
+  }
+  return html;
 }
 function renderBlueprintPreview(canvas,blueprint){
   const context=canvas.getContext('2d');
@@ -3375,10 +4773,10 @@ function buildBlueprints(){
           <canvas class="blueprint-preview" data-preview="${blueprint.id}"></canvas>
           <div>
             <strong>${escapeHtml(blueprint.name)}</strong>
-            <div class="blueprint-meta">${blueprint.width}×${blueprint.height} · 부품 ${blueprint.components.length} · 배선 ${blueprint.wires.length}<br>${VOLTAGE_MODES[blueprint.voltage]?.label||blueprint.voltage} · 원본 ${fmtCompute(blueprint.sourceRate)}/s</div>
+            <div class="blueprint-meta">${blueprint.width}×${blueprint.height} · 부품 ${blueprint.components.length} · 배선 ${blueprint.wires.length}<br>${VOLTAGE_MODES[blueprint.voltage]?.label||blueprint.voltage} · 원본 ${fmtCompute(blueprint.sourceRate)}/s${blueprint.analysis?`<br>${escapeHtml(blueprintGradeLine(blueprint))}`:''}</div>
           </div>
         </div>
-        <div class="blueprint-meta">${escapeHtml(blueprintInventorySummary(blueprint))}${limits.blueprintPreview?`<br>${escapeHtml(blueprintChipEstimate(blueprint))}`:''}</div>
+        <div class="blueprint-meta">${escapeHtml(blueprintInventorySummary(blueprint))}${limits.blueprintPreview?`<br>${escapeHtml(blueprintChipEstimate(blueprint))}`:''}${(blueprint.certifiedModules||[]).length?`<br>인증 Module: ${blueprint.certifiedModules.map(m=>escapeHtml(CircuitForgeCore.MODULE_DEFS[m]?.label.replace(' Module','')||m)).join(' · ')}`:''}</div>
         <div class="blueprint-actions">
           <button data-guide="${blueprint.id}">수동 가이드</button>
           <button class="primary" data-auto="${blueprint.id}" ${blueprint.components.some(component=>component.name==='chip')?'disabled title="Chip 포함 Blueprint는 수동 배치만 지원"':''}>Auto-Solderer</button>
@@ -3387,18 +4785,25 @@ function buildBlueprints(){
         </div>
       </div>`).join('');
   }
-  html+='<h3>Compressed Chip 인벤토리</h3>';
-  if(!(G.chipInventory||[]).length){
+  const chipInv=G.chipInventory||[];
+  html+=`<h3>Compressed Chip 인벤토리${chipInv.length?` <span style="color:var(--muted);font-weight:400;font-size:12px">(${chipInv.length})</span>`:''}</h3>`;
+  if(!chipInv.length){
     html+='<div class="blueprint-meta">Blueprint를 압축하면 실제 1×1 Chip이 여기에 생성됩니다.</div>';
   }else{
-    html+=G.chipInventory.map(chip=>`
+    html+=`<div class="blueprint-actions" style="margin-bottom:6px"><button id="openChipInventory" class="primary">🔍 한눈에 보기 (${chipInv.length})</button></div>`;
+    // 인라인은 최신 3개만 미리보기로 보여 스크롤 부담을 줄이고, 전체는 모달에서 본다.
+    const preview=chipInv.slice(-3).reverse();
+    html+=preview.map(chip=>`
       <div class="blueprint-card">
         <div class="blueprint-head"><span style="font-size:22px;color:#9f91ff">◆</span>
-          <div><strong>${escapeHtml(chip.name)}</strong>
-          <div class="blueprint-meta">${fmtCompute(chip.base)} base · ${(chip.requiresAmps||0).toFixed(2)}A · Heat ${chip.heat.toFixed(2)} · 압축 깊이 ${chip.depth}</div></div>
+          <div><strong>${escapeHtml(chip.name)}</strong>${chip.architectureRole==='alu'?' <span style="color:#7fd99a;font-size:11px">ALU</span>':chip.architectureRole==='cpu'?' <span style="color:#7fb8ff;font-size:11px">CPU</span>':''}
+          <div class="blueprint-meta">${CircuitForgeCore.CHIP_QUALITY_LABELS[chip.quality]||'Crude'} · ${fmtCompute(chip.base)} base · ${(chip.requiresAmps||0).toFixed(2)}A · Heat ${chip.heat.toFixed(2)} · 압축 깊이 ${chip.depth}</div></div>
         </div>
         <div class="blueprint-actions"><button class="primary" data-select-chip="${chip.id}">보드에 배치</button></div>
       </div>`).join('');
+    if(chipInv.length>preview.length){
+      html+=`<div class="blueprint-meta" style="text-align:center">…외 ${chipInv.length-preview.length}개 · [한눈에 보기]에서 모두 확인</div>`;
+    }
   }
   html+='<h3>Auto-Solderer 대기열</h3>';
   if(!G.autoSolderQueue.length){
@@ -3431,17 +4836,10 @@ function buildBlueprints(){
     button.onclick=()=>compressBlueprintWithFlux(button.dataset.compress);
   });
   container.querySelectorAll('[data-select-chip]').forEach(button=>{
-    button.onclick=()=>{
-      G.selected='chip';
-      G.selectedChipId=button.dataset.selectChip;
-      G.rotation=0;
-      G.tool='place';
-      refreshTools();
-      buildShop();
-      updateSelectionStatus();
-      toast('Compressed Chip 선택 · 보드의 빈 칸에 배치하세요');
-    };
+    button.onclick=()=>selectChipForPlacement(button.dataset.selectChip);
   });
+  const openChipInv=document.getElementById('openChipInventory');
+  if(openChipInv) openChipInv.onclick=openChipInventory;
   const fluxSlotButton=document.getElementById('buyFluxBlueprintSlot');
   if(fluxSlotButton) fluxSlotButton.onclick=buyFluxBlueprintSlot;
   container.querySelectorAll('[data-auto]').forEach(button=>{
@@ -3467,6 +4865,76 @@ function refreshBlueprintProgress(){
     if(time) time.textContent=`${job.remaining.toFixed(1)}초`;
     if(bar) bar.style.width=`${((1-job.remaining/job.duration)*100).toFixed(1)}%`;
   }
+}
+// Chip을 배치 도구로 선택 (인라인 카드·인벤토리 모달 공용)
+function selectChipForPlacement(chipId){
+  G.selected='chip';
+  G.selectedChipId=chipId;
+  G.rotation=0;
+  G.tool='place';
+  refreshTools();
+  buildShop();
+  updateSelectionStatus();
+  toast('Compressed Chip 선택 · 보드의 빈 칸에 배치하세요');
+}
+// ---- Compressed Chip 인벤토리 모달: 칩이 많아도 그리드로 한눈에 ----
+const CHIP_INV_FILTERS=[
+  {key:'all',   label:'전체', test:()=>true},
+  {key:'cpu',   label:'CPU',  test:c=>c.architectureRole==='cpu'},
+  {key:'alu',   label:'ALU',  test:c=>c.architectureRole==='alu'},
+  {key:'plain', label:'일반', test:c=>c.architectureRole!=='cpu'&&c.architectureRole!=='alu'},
+];
+let chipInvFilter='all';
+const chipInventoryModal=document.getElementById('chipInventoryModal');
+function openChipInventory(){
+  chipInvFilter='all';
+  renderChipInventoryGrid();
+  chipInventoryModal.classList.add('open');
+  chipInventoryModal.setAttribute('aria-hidden','false');
+}
+function closeChipInventory(){
+  chipInventoryModal.classList.remove('open');
+  chipInventoryModal.setAttribute('aria-hidden','true');
+}
+function renderChipInventoryGrid(){
+  const grid=document.getElementById('chipInventoryGrid');
+  const filterBar=document.getElementById('chipInventoryFilters');
+  const chips=G.chipInventory||[];
+  document.getElementById('chipInventoryTitle').textContent=`Compressed Chip 인벤토리 (${chips.length})`;
+  // 필터 칩
+  filterBar.innerHTML='';
+  for(const f of CHIP_INV_FILTERS){
+    const count=chips.filter(f.test).length;
+    const btn=document.createElement('button');
+    btn.className='chip-inv-filter'+(chipInvFilter===f.key?' active':'');
+    btn.textContent=`${f.label} ${count}`;
+    btn.onclick=()=>{ chipInvFilter=f.key; renderChipInventoryGrid(); };
+    filterBar.appendChild(btn);
+  }
+  const active=CHIP_INV_FILTERS.find(f=>f.key===chipInvFilter)||CHIP_INV_FILTERS[0];
+  const shown=chips.filter(active.test);
+  if(!shown.length){
+    grid.innerHTML='<div class="blueprint-meta">해당하는 Chip이 없습니다.</div>';
+    return;
+  }
+  grid.innerHTML=shown.map(chip=>{
+    const badge=chip.architectureRole==='alu'
+      ? '<span class="chip-inv-badge" style="background:#1e3a28;color:#7fd99a">ALU</span>'
+      : chip.architectureRole==='cpu'
+      ? '<span class="chip-inv-badge" style="background:#1e2e4a;color:#7fb8ff">CPU</span>':'';
+    return `<div class="chip-inv-card">
+      <div class="ci-name"><span style="color:#9f91ff">◆</span>${escapeHtml(chip.name)}${badge}</div>
+      <div class="ci-meta">${CircuitForgeCore.CHIP_QUALITY_LABELS[chip.quality]||'Crude'} · ${fmtCompute(chip.base)} base<br>${(chip.requiresAmps||0).toFixed(2)}A · Heat ${chip.heat.toFixed(2)} · 깊이 ${chip.depth}</div>
+      <button class="primary" data-modal-chip="${chip.id}">보드에 배치</button>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('[data-modal-chip]').forEach(button=>{
+    button.onclick=()=>{ selectChipForPlacement(button.dataset.modalChip); closeChipInventory(); };
+  });
+}
+if(chipInventoryModal){
+  document.getElementById('chipInventoryClose').onclick=closeChipInventory;
+  chipInventoryModal.addEventListener('mousedown',e=>{ if(e.target===chipInventoryModal) closeChipInventory(); });
 }
 
 // =========================================================================
@@ -3531,6 +4999,20 @@ function render(){
     }
   }
 
+  // 보드 히트싱크(빈 칸 방열판) — 인접한 것끼리 경계선을 생략해 하나의 판처럼 병합되어 보인다.
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    if(cells[idx(x,y)].boardHeatsink) drawBoardHeatsink(x,y);
+  }
+  // 히트파이프 배관 — 인접 파이프·히트싱크·보드싱크 방향으로 팔을 뻗어 연결되어 보인다.
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    if(cells[idx(x,y)].pipe) drawPipe(x,y);
+  }
+
+  // 부착팬(2×2) 오버레이 — 부품 위에 덮어 그린다. 회전 세기는 fanSpinMap(틱마다 갱신).
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+    if(cells[idx(x,y)].fanAnchor) drawFanAttachment(x,y,fanSpinMap.get(`${x},${y}`)||0,1);
+  }
+
   drawBlueprintGuide();
   drawEfficiencyAuditHighlight();
 
@@ -3538,11 +5020,38 @@ function render(){
   if(G.selected && hoverCell && !dragging && !eraseDrag){
     const [x,y]=hoverCell;
     const d=COMPONENTS[G.selected];
+    if(G.selected==='fan'){
+      // 2×2 부착 프리뷰(보드 경계에 맞춰 좌상단 보정)
+      const ax=Math.min(x,size-2), ay=Math.min(y,size-2);
+      if(ax>=0&&ay>=0) drawFanAttachment(ax,ay,0,0.5);
+      canvas.classList.toggle('invalid',anyInvalid);
+      return;
+    }
     if(d.attachment){
       const state=componentStateAt(x,y);
       if(state && state.cell.comp!=='junction'){
         drawHeatsinkAttachment(state.anchor[0],state.anchor[1],0.55);
+      } else if(G.selected==='heatsink' && inBounds(x,y)){
+        // 빈 칸 보드 히트싱크 미리보기
+        const cell=cells[idx(x,y)];
+        const free=!cell.comp && !cell.wire && !cell.boardHeatsink;
+        ctx.save();
+        ctx.globalAlpha=0.5;
+        ctx.fillStyle=free ? '#8b979e' : '#ff5252';
+        ctx.fillRect(x*CELL+2,y*CELL+2,CELL-4,CELL-4);
+        ctx.restore();
       }
+      canvas.classList.toggle('invalid',anyInvalid);
+      return;
+    }
+    if(d.conduit && inBounds(x,y)){
+      // 히트파이프 미리보기(레이어 2 오버레이 — 어디든 올릴 수 있음)
+      const px=x*CELL, py=y*CELL;
+      ctx.save();
+      ctx.globalAlpha=0.55;
+      ctx.fillStyle=(G.inventory?.[G.selected]||0)>0 ? d.color : '#ff5252';
+      ctx.beginPath(); ctx.arc(px+CELL/2,py+CELL/2,CELL*0.22,0,Math.PI*2); ctx.fill();
+      ctx.restore();
       canvas.classList.toggle('invalid',anyInvalid);
       return;
     }
@@ -3771,6 +5280,57 @@ function drawWireFailureOverlay(x,y){
   ctx.stroke();
   ctx.restore();
 }
+// 보드 히트싱크: 칸을 가득 채우는 금속판 + 수평 핀. 인접 보드싱크와 맞닿은 변은 경계선을 생략해 병합되어 보인다.
+function drawBoardHeatsink(x,y){
+  const sz=G.board.size;
+  const has=(nx,ny)=> inBounds(nx,ny) && G.board.cells[idx(nx,ny)]?.boardHeatsink;
+  const px=x*CELL, py=y*CELL;
+  ctx.save();
+  ctx.fillStyle='#5f6b72';
+  ctx.fillRect(px,py,CELL,CELL);
+  const fins=Math.max(4,Math.round(CELL/8));
+  const gap=CELL/fins;
+  for(let i=0;i<fins;i++){
+    ctx.fillStyle=i%2 ? '#c2ccd1' : '#929fa6';
+    ctx.fillRect(px+1.5,py+i*gap+gap*0.18,CELL-3,Math.max(1,gap*0.5));
+  }
+  ctx.strokeStyle='#3a4a52'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  if(!has(x,y-1)){ ctx.moveTo(px,py); ctx.lineTo(px+CELL,py); }
+  if(!has(x,y+1)){ ctx.moveTo(px,py+CELL); ctx.lineTo(px+CELL,py+CELL); }
+  if(!has(x-1,y)){ ctx.moveTo(px,py); ctx.lineTo(px,py+CELL); }
+  if(!has(x+1,y)){ ctx.moveTo(px+CELL,py); ctx.lineTo(px+CELL,py+CELL); }
+  ctx.stroke();
+  ctx.restore();
+}
+// 히트파이프 배관(레이어 2): 유저가 그은 방향(pipeDirs)으로만 팔을 뻗는다. 부품·히트싱크 위에 겹쳐 그려진다.
+function drawPipe(x,y){
+  const cell=G.board.cells[idx(x,y)];
+  const col=COMPONENTS[cell.pipeName]?.color || '#c98a5a';
+  const dirs=cell.pipeDirs||0;
+  const px=x*CELL, py=y*CELL, cxp=px+CELL/2, cyp=py+CELL/2;
+  // 등급이 높을수록 배관이 굵어진다(전달 효율↑ 시각화).
+  const w=Math.max(3, CELL*(0.14 + 0.07*(cell.pipeGrade||1)));
+  // 같은 칸에 히트싱크(부착/보드)가 있으면 연결 표시로 테두리 강조
+  const onSink=Boolean(cell.heatsink||cell.boardHeatsink);
+  ctx.save();
+  ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round';
+  ctx.beginPath();
+  let drew=false;
+  for(const dir of DIRECTIONS){
+    if(dirs&dir.bit){
+      ctx.moveTo(cxp,cyp); ctx.lineTo(cxp+dir.dx*CELL/2, cyp+dir.dy*CELL/2); drew=true;
+    }
+  }
+  if(!drew){ ctx.moveTo(cxp-1,cyp); ctx.lineTo(cxp+1,cyp); }  // 고립 파이프 점
+  ctx.stroke();
+  // 중심 노드(히트싱크 위면 더 크게=연결 단자처럼)
+  ctx.fillStyle=col;
+  ctx.beginPath(); ctx.arc(cxp,cyp, onSink ? w*0.8 : w*0.55, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle= onSink ? '#fff7e0' : 'rgba(20,28,32,.7)';
+  ctx.beginPath(); ctx.arc(cxp,cyp,Math.max(1,w*(onSink?0.3:0.18)),0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
 function drawHeatsinkAttachment(x,y,alpha=1){
   const footprint=componentCellsAt(x,y);
   if(!footprint.length) return;
@@ -3796,6 +5356,37 @@ function drawHeatsinkAttachment(x,y,alpha=1){
   ctx.strokeStyle='#e4ebee';
   ctx.lineWidth=1;
   ctx.strokeRect(left+.5,top+.5,width-1,height-1);
+  ctx.restore();
+}
+// 2×2 부착팬: (ax,ay) 좌상단 기준 2칸 영역에 반투명 하우징 + 회전 날개.
+// spin = 회전·냉각 세기(0~FAN_DISSIPATION). 0이면 정지(회색)로 그려 전력 없음을 표시.
+function drawFanAttachment(ax,ay,spin=0,alpha=1){
+  const cx=(ax+1)*CELL, cy=(ay+1)*CELL;       // 2×2 중심
+  const R=CELL*0.92;                            // 하우징 반경
+  const speedFactor=Math.max(0,Math.min(1,spin/FAN_DISSIPATION));
+  const angle=speedFactor>0 ? (nowMs*0.0045*(0.3+0.7*speedFactor))%(Math.PI*2) : 0;
+  ctx.save();
+  ctx.globalAlpha*=alpha;
+  // 하우징(둥근 사각 느낌의 원형 프레임)
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+  ctx.fillStyle='rgba(18,26,30,0.55)'; ctx.fill();
+  ctx.lineWidth=Math.max(2,CELL*0.06); ctx.strokeStyle=speedFactor>0?'#7fd3dc':'#5a666c'; ctx.stroke();
+  // 날개
+  ctx.translate(cx,cy); ctx.rotate(angle);
+  const blades=4, bladeColor=speedFactor>0?'#9be3ec':'#7f8b91';
+  for(let i=0;i<blades;i++){
+    ctx.rotate((Math.PI*2)/blades);
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.quadraticCurveTo(R*0.32,-R*0.30,R*0.82,-R*0.12);
+    ctx.quadraticCurveTo(R*0.55,R*0.10,0,0);
+    ctx.fillStyle=bladeColor; ctx.globalAlpha=(alpha)* (speedFactor>0?0.9:0.7);
+    ctx.fill();
+  }
+  ctx.globalAlpha=alpha;
+  // 허브
+  ctx.beginPath(); ctx.arc(0,0,R*0.16,0,Math.PI*2);
+  ctx.fillStyle=speedFactor>0?'#cdeff3':'#9aa6ac'; ctx.fill();
   ctx.restore();
 }
 function drawComponentTerminals(x,y,alpha=1){
@@ -4035,6 +5626,7 @@ function showMeterReadingAt(x,y,circuit,branch,anchor){
 let dragging=false, eraseDrag=false, hoverCell=null, wireDragLast=null;
 let placeDrag=false, placeDragLast=null;
 let heatsinkDrag=false; // Heatsink를 드래그로 여러 부품에 연속 장착
+let pipeDrag=false, pipeDragLast=null; // 히트파이프를 배선식 방향성 드래그로 배치
 let viewZoom=1, viewPanX=0, viewPanY=0;
 let middleDragging=false, lastMiddlePos=null;
 // 일반 부품(Chip·장착형 제외)만 드래그 연속 배치 대상
@@ -4043,13 +5635,20 @@ function isDragPlaceable(name){
   return Boolean(d) && name!=='chip' && !d.attachment;
 }
 
-// 드래그 중 Heatsink를 부품에 장착(설치 전용 — 이미 장착된 부품은 건드리지 않아 도로 떼지지 않음).
+// 드래그 중 Heatsink를 연속 배치(설치 전용 — 이미 있는 칸은 건드리지 않아 도로 떼지지 않음).
+// 부품엔 부착, 빈 칸엔 보드 히트싱크 plate. (히트파이프는 별도 방향성 드래그)
 function attachHeatsinkDuringDrag(x,y){
+  if((G.inventory?.heatsink||0)<=0) return;          // 재고 없으면 조용히 스킵(토스트 도배 방지)
   const state=componentStateAt(x,y);
-  if(!state || state.cell.comp==='junction' || COMPONENTS[state.cell.comp]?.attachment) return;
-  if(state.cell.heatsink) return;                  // 이미 장착됨 — 드래그 중엔 제거하지 않음
-  if((G.inventory?.heatsink||0)<=0) return;        // 재고 없으면 조용히 스킵(토스트 도배 방지)
-  state.cell.heatsink=true;
+  if(state){
+    if(state.cell.comp==='junction' || COMPONENTS[state.cell.comp]?.attachment) return;
+    if(state.cell.heatsink) return;                 // 이미 장착됨 — 드래그 중엔 제거하지 않음
+    state.cell.heatsink=true;
+  } else {
+    const cell=G.board.cells[idx(x,y)];
+    if(cell.comp||cell.wire||cell.boardHeatsink) return;
+    cell.boardHeatsink=true;
+  }
   G.inventory.heatsink=(G.inventory.heatsink||0)-1;
   maybeFirstSolder('heatsink');
   buildShop();
@@ -4128,11 +5727,16 @@ canvas.addEventListener('mousedown', ev=>{
   }
   if(G.selected){
     const name=G.selected;
+    // 히트파이프(conduit): 배선식 방향성 드래그(부품·히트싱크 위를 지나갈 수 있는 레이어 2 오버레이)
+    if(COMPONENTS[name]?.conduit){
+      pipeDrag=true; pipeDragLast=[x,y]; startPipeAt(x,y);
+      return;
+    }
     placeComponent(x,y,name);
     // 일반 부품은 드래그로 연속 배치 시작(Chip·장착형 제외)
     if(G.selected===name && isDragPlaceable(name)){ placeDrag=true; placeDragLast=[x,y]; }
-    // Heatsink는 드래그로 여러 부품에 연속 장착(첫 클릭은 기존 토글 동작 유지)
-    else if(G.selected===name && COMPONENTS[name]?.attachment){ heatsinkDrag=true; placeDragLast=[x,y]; }
+    // Heatsink는 드래그로 여러 부품에 연속 장착(첫 클릭은 기존 토글 동작 유지). 팬은 2×2 단일클릭이라 제외.
+    else if(G.selected===name && COMPONENTS[name]?.attachment && name!=='fan'){ heatsinkDrag=true; placeDragLast=[x,y]; }
     return;
   }
 
@@ -4177,6 +5781,8 @@ canvas.addEventListener('mousemove', ev=>{
     }
   }
   else if(heatsinkDrag){ heatsinkDrag=false; placeDragLast=null; }
+  else if(pipeDrag && G.selected && (ev.buttons&1)) continuePipeDrag(x,y);
+  else if(pipeDrag){ pipeDrag=false; pipeDragLast=null; }
   else if(dragging && !G.selected) continueWireDrag(x,y);
   else if(G.tool==='select') showBoardCellTooltip(x,y,ev.clientX,ev.clientY);
   else hideComponentTooltip();
@@ -4185,6 +5791,7 @@ window.addEventListener('mouseup', ev=>{
   if(ev.button===1){ middleDragging=false; lastMiddlePos=null; canvas.style.cursor=''; }
   dragging=false; eraseDrag=false; wireDragLast=null;
   placeDrag=false; placeDragLast=null; heatsinkDrag=false;
+  pipeDrag=false; pipeDragLast=null;
 });
 canvas.addEventListener('mouseleave', ()=>{ hoverCell=null; hideComponentTooltip(); });
 canvas.addEventListener('contextmenu', e=>e.preventDefault());
@@ -4208,6 +5815,61 @@ document.addEventListener('mousemove', ev=>{
   clampPan(); applyViewTransform();
 });
 
+// ---- 히트파이프(레이어 2 오버레이) 방향성 드래그 — 배선과 동일 패턴, 단 부품·히트싱크 위도 지나간다 ----
+function startPipeAt(x,y){
+  const name=G.selected; const def=COMPONENTS[name];
+  if(!def?.conduit) return;
+  const c=G.board.cells[idx(x,y)];
+  if(!c.pipe){
+    if((G.inventory?.[name]||0)<=0){ toast(`${def.name} 재고가 없습니다`); pipeDrag=false; pipeDragLast=null; return; }
+    G.inventory[name]--;
+    c.pipe=true; c.pipeDirs=c.pipeDirs||0; c.pipeGrade=def.pipeGrade; c.pipeCapacity=def.pipeCapacity; c.pipeName=name;
+    maybeFirstSolder(name); buildShop();
+  }
+  render();
+}
+function continuePipeDrag(x,y){
+  if(!pipeDragLast){ pipeDragLast=[x,y]; startPipeAt(x,y); return; }
+  let [cx,cy]=pipeDragLast;
+  if(cx===x&&cy===y) return;
+  while(cx!==x || cy!==y){
+    const dx=x===cx ? 0 : Math.sign(x-cx);
+    const dy=dx===0 ? Math.sign(y-cy) : 0;
+    const nx=cx+dx, ny=cy+dy;
+    if(!addPipeSegment(cx,cy,nx,ny)) break;
+    cx=nx; cy=ny;
+  }
+  pipeDragLast=[cx,cy];
+}
+function addPipeSegment(x,y,nx,ny){
+  if(!inBounds(x,y)||!inBounds(nx,ny)) return false;
+  const dir=DIRECTIONS.find(d=>x+d.dx===nx&&y+d.dy===ny);
+  if(!dir) return false;
+  const name=G.selected; const def=COMPONENTS[name];
+  if(!def?.conduit) return false;
+  const a=G.board.cells[idx(x,y)], b=G.board.cells[idx(nx,ny)];
+  // 새로 깔리는 파이프 칸 수만큼 재고 필요(부품·히트싱크 위에도 올릴 수 있음 — 레이어 2 오버레이)
+  const newA=!a.pipe, newB=!b.pipe;
+  const need=(newA?1:0)+(newB?1:0);
+  if(need>0 && (G.inventory?.[name]||0)<need){ toast(`${def.name} 재고 부족`); return false; }
+  const initPipe=(cell)=>{ cell.pipe=true; cell.pipeDirs=cell.pipeDirs||0; cell.pipeGrade=def.pipeGrade; cell.pipeCapacity=def.pipeCapacity; cell.pipeName=name; };
+  if(newA){ G.inventory[name]--; initPipe(a); }
+  if(newB){ G.inventory[name]--; initPipe(b); }
+  a.pipeDirs=(a.pipeDirs||0)|dir.bit;
+  b.pipeDirs=(b.pipeDirs||0)|dir.oppositeBit;
+  if(need>0) maybeFirstSolder(name);
+  buildShop(); render();
+  return true;
+}
+// 파이프 회수 시 이웃 칸의 마주보는 방향 비트를 끊는다.
+function disconnectPipeFromNeighbors(x,y){
+  for(const dir of DIRECTIONS){
+    const nx=x+dir.dx, ny=y+dir.dy;
+    if(!inBounds(nx,ny)) continue;
+    const nb=G.board.cells[idx(nx,ny)];
+    if(nb.pipe) nb.pipeDirs=(nb.pipeDirs||0)&~dir.oppositeBit;
+  }
+}
 function startWireAt(x,y){
   const c=G.board.cells[idx(x,y)];
   if(c.comp) return;
@@ -4272,13 +5934,8 @@ function addWireSegment(x,y,nx,ny){
   const snapshotB={wire:b.wire,wireDirs:b.wireDirs||0};
   if(!a.comp){a.wire=true;a.wireDirs=(a.wireDirs||0)|dir.bit;}
   if(!b.comp){b.wire=true;b.wireDirs=(b.wireDirs||0)|dir.oppositeBit;}
-
-  if((!a.comp&&plainWireDegree(x,y)>2)||(!b.comp&&plainWireDegree(nx,ny)>2)){
-    a.wire=snapshotA.wire;a.wireDirs=snapshotA.wireDirs;
-    b.wire=snapshotB.wire;b.wireDirs=snapshotB.wireDirs;
-    toast('3방향 이상 분기에는 Junction이 필요합니다');
-    return false;
-  }
+  // 전선만으로 3방향 이상 분기 허용 — 별도 차단 없음.
+  void snapshotA; void snapshotB;
 
   if(newA){
     G.wireInventory[grade]--; a.wireGrade=grade;
@@ -4304,7 +5961,8 @@ function canPlaceComponent(x,y,name,rotation=0,ignoreAnchor=null){
       const anchor=componentAnchorAt(cx,cy);
       if(anchor && anchor[0]===ignoreAnchor[0] && anchor[1]===ignoreAnchor[1]) return true;
     }
-    return !cell.comp && !cell.wire;
+    // 히트파이프(cell.pipe)는 레이어 2 오버레이라 부품 배치를 막지 않는다.
+    return !cell.comp && !cell.wire && !cell.boardHeatsink;
   });
 }
 function plainWireDegree(x,y){
@@ -4329,6 +5987,33 @@ function refreshCircuitsAfterEdit(){
 }
 function eraseCell(x,y){
   const c=G.board.cells[idx(x,y)];
+  // 부착팬이 덮고 있으면 먼저 팬만 회수(맨 위 레이어 우선). 다시 지우면 아래 부품이 지워진다.
+  const fanAnchor=fanAnchorCovering(x,y);
+  if(fanAnchor){
+    for(const [cx,cy] of fanCoveredCells(fanAnchor[0],fanAnchor[1])) G.board.cells[idx(cx,cy)].fan=false;
+    G.board.cells[idx(fanAnchor[0],fanAnchor[1])].fanAnchor=false;
+    G.inventory.fan=(G.inventory.fan||0)+1;
+    log('Cooling Fan 회수');
+    buildShop(); render();
+    return;
+  }
+  // 히트파이프는 최상위(팬 다음) 오버레이 레이어 — 부품·히트싱크 위에 있어도 먼저 회수한다.
+  if(c.pipe){
+    G.inventory[c.pipeName||'heatpipe1']=(G.inventory[c.pipeName||'heatpipe1']||0)+1;
+    disconnectPipeFromNeighbors(x,y);
+    c.pipe=false; c.pipeDirs=0; c.pipeGrade=0; c.pipeCapacity=0; c.pipeName=null;
+    log('히트파이프 회수');
+    buildShop(); render();
+    return;
+  }
+  // 보드 히트싱크(빈 칸 방열판)만 있는 칸이면 회수하고 재고로 되돌린다.
+  if(c.boardHeatsink && !c.comp && !c.wire){
+    c.boardHeatsink=false;
+    G.inventory.heatsink=(G.inventory.heatsink||0)+1;
+    log('보드 Heatsink 회수');
+    buildShop(); render();
+    return;
+  }
   const hadWire=Boolean(c.wire);
   const anchor=componentAnchorAt(x,y);
   const anchorCell=anchor ? G.board.cells[idx(anchor[0],anchor[1])] : null;
@@ -4424,24 +6109,67 @@ function placeComponent(x,y,name){
   }
   const inventoryStock = G.inventory?.[name] || 0;
   if(!isComponentUnlocked(name)){ toast(`해금 조건: ${unlockText(name)}`); return; }
-  if(def.attachment){
-    const state=componentStateAt(x,y);
-    if(!state || state.cell.comp==='junction'){
-      toast('Heatsink는 배치된 전기 부품 위에 장착합니다');
+  if(name==='fan'){
+    // 2×2 부착팬: 기존 팬에 덮인 칸을 클릭하면 회수, 아니면 2×2로 새로 부착
+    const existing=fanAnchorCovering(x,y);
+    if(existing){
+      for(const [cx,cy] of fanCoveredCells(existing[0],existing[1])) G.board.cells[idx(cx,cy)].fan=false;
+      G.board.cells[idx(existing[0],existing[1])].fanAnchor=false;
+      G.inventory.fan=inventoryStock+1;
+      log('Cooling Fan 회수');
+      buildShop(); render();
       return;
     }
-    if(state.cell.heatsink){
-      state.cell.heatsink=false;
+    if(inventoryStock<=0){ toast('Cooling Fan 재고가 없습니다'); return; }
+    const ax=Math.min(x,G.board.size-2), ay=Math.min(y,G.board.size-2);
+    if(ax<0||ay<0){ toast('Cooling Fan은 2×2 공간이 필요합니다'); return; }
+    const covered=fanCoveredCells(ax,ay);
+    if(covered.some(([cx,cy])=>G.board.cells[idx(cx,cy)].fan)){
+      toast('이미 다른 팬이 덮고 있습니다'); return;
+    }
+    for(const [cx,cy] of covered) G.board.cells[idx(cx,cy)].fan=true;
+    G.board.cells[idx(ax,ay)].fanAnchor=true;
+    G.inventory.fan=inventoryStock-1;
+    log('Cooling Fan 2×2 부착');
+    maybeFirstSolder(name);
+    buildShop(); render();
+    return;
+  }
+  // 히트파이프(conduit)는 배선식 방향성 드래그로 배치한다(mousedown의 pipeDrag). placeComponent 대상 아님.
+  if(def.conduit) return;
+  if(def.attachment){
+    const state=componentStateAt(x,y);
+    if(state && state.cell.comp!=='junction'){
+      // 부품 위 부착 히트싱크 (기존)
+      if(state.cell.heatsink){
+        state.cell.heatsink=false;
+        G.inventory.heatsink=inventoryStock+1;
+        log('Heatsink 회수');
+      } else {
+        if(inventoryStock<=0){ toast('Heatsink 재고가 없습니다'); return; }
+        state.cell.heatsink=true;
+        G.inventory.heatsink=inventoryStock-1;
+        log(`${COMPONENTS[state.cell.comp].name}에 Heatsink 장착`);
+        maybeFirstSolder(name);
+      }
+      buildShop();
+      return;
+    }
+    // 부품이 없는 빈 칸 → 보드 히트싱크(인접 부품을 식히는 방열판, 인접끼리 텍스처 병합)
+    const boardCell=G.board.cells[idx(x,y)];
+    if(boardCell.comp||boardCell.wire){ toast('보드 히트싱크는 빈 칸에 배치합니다'); return; }
+    if(boardCell.boardHeatsink){
+      boardCell.boardHeatsink=false;
       G.inventory.heatsink=inventoryStock+1;
-      log('Heatsink 회수');
+      log('보드 Heatsink 회수');
     } else {
       if(inventoryStock<=0){ toast('Heatsink 재고가 없습니다'); return; }
-      state.cell.heatsink=true;
+      boardCell.boardHeatsink=true;
       G.inventory.heatsink=inventoryStock-1;
-      log(`${COMPONENTS[state.cell.comp].name}에 Heatsink 장착`);
+      log('보드 Heatsink 배치 · 인접 부품을 냉각합니다');
       maybeFirstSolder(name);
     }
-    buildShop();
+    buildShop(); render();
     return;
   }
   if(inventoryStock <= 0){ toast(`${def.name} 재고가 없습니다`); return; }
@@ -4527,14 +6255,44 @@ const UNLOCKS={
     text:()=>`최고 ${Math.min(70,G.peakHeat||0).toFixed(0)} / 70°C`,
   },
 };
+// 인증된 Module 누적 개수(범용 해금 조건 평가용)
+function certifiedModuleCounts(){
+  const totals={};
+  for(const bp of G.blueprints||[]) for(const m of (bp.certifiedModules||[])){
+    totals[m]=(totals[m]||0)+1;
+  }
+  return totals;
+}
+function currentUnlockState(){
+  return {
+    totalCompute:G.totalCompute||0,
+    funds:G.funds||0,
+    flux:G.flux||0,
+    processLevel:(G.processNode||{}).level||0,
+    tapeouts:G.tapeoutCount||0,
+    modules:certifiedModuleCounts(),
+  };
+}
 function hasUnlockGate(name){
   const d=COMPONENTS[name];
-  return Boolean(d?.unlock || d?.unlockFlops || d?.requiresUnlock);
+  return Boolean(d?.unlock || d?.unlockFlops || d?.requiresUnlock || d?.unlockCondition);
+}
+// Upgrades 탭에 표시할 만큼 "가까운" 해금 게이트인지 — 아직 먼 미래 부품은 숨겨 잡동사니를 줄인다.
+function unlockReachable(name){
+  const d=COMPONENTS[name];
+  if(isComponentUnlocked(name)) return true;            // 이미 해금: '해금됨'으로 표시
+  if((d?.phase||0)>=2 && !G.phase2Unlocked) return false;// Phase 2 미진입 → Phase2+ 부품 숨김
+  if(d?.unlockCondition){                                // 해당 공정 세대에 도달해야 노출
+    const lvl=(G.processNode||{}).level||0;
+    return lvl>=(d.unlockCondition.processLevel||0);
+  }
+  return true;
 }
 function isComponentUnlocked(name){
   const d=COMPONENTS[name];
   if((G.starterStock?.[name]||0)>0) return true;
   if(name==='chip') return true;
+  if(d?.family==='ip') return true; // 등록된 IP는 항상 사용 가능
   if(d?.phase===2&&!G.phase2Unlocked) return false;
   if(d?.requiresUnlock) return isComponentUnlocked(d.requiresUnlock);
   return !hasUnlockGate(name) || Boolean(G.unlocked?.[name]);
@@ -4543,13 +6301,35 @@ function unlockProgress(name){
   const d=COMPONENTS[name];
   if(d?.phase===2&&!G.phase2Unlocked) return 0;
   if(d?.requiresUnlock) return isComponentUnlocked(d.requiresUnlock) ? 1 : 0;
+  if(d?.unlockCondition){
+    return CircuitForgeCore.checkUnlockCondition(d.unlockCondition,currentUnlockState()).ok ? 1 : 0;
+  }
   if(d?.unlockFlops) return Math.min(1,(G.totalCompute||0)/d.unlockFlops);
   const rule=UNLOCKS[d?.unlock];
   return rule ? rule.progress() : 1;
 }
+// 범용 해금 조건의 미충족 항목을 사람이 읽을 수 있는 문구로 변환
+function unlockConditionText(cond){
+  const state=currentUnlockState();
+  const {met}=CircuitForgeCore.checkUnlockCondition(cond,state);
+  const parts=[];
+  if(cond.processLevel!=null) parts.push(`${met.processLevel?'✓':'✗'} 공정 ${CircuitForgeCore.PROCESS_NODES[cond.processLevel]?.name||cond.processLevel}`);
+  if(cond.modules) for(const [m,n] of Object.entries(cond.modules)){
+    const label=(CircuitForgeCore.MODULE_DEFS[m]?.label||m).replace(' Module','');
+    parts.push(`${met.modules?.[m]?'✓':'✗'} ${label} Module ${state.modules[m]||0}/${n}`);
+  }
+  if(cond.totalCompute!=null) parts.push(`${met.totalCompute?'✓':'✗'} 누적 ${fmtCompute(Math.min(cond.totalCompute,state.totalCompute))}/${fmtCompute(cond.totalCompute)}`);
+  if(cond.flux!=null) parts.push(`${met.flux?'✓':'✗'} Flux ${state.flux}/${cond.flux}`);
+  if(cond.tapeouts!=null) parts.push(`${met.tapeouts?'✓':'✗'} Tape-out ${state.tapeouts}/${cond.tapeouts}`);
+  return parts.join(' · ');
+}
 function unlockText(name){
   const d=COMPONENTS[name];
   if(d?.phase===2&&!G.phase2Unlocked) return 'Phase 2 진입 조건 필요';
+  if(d?.unlockCondition){
+    if(unlockProgress(name)>=1) return d.unlockCost ? `Upgrades에서 ${fmtMoney(d.unlockCost)}로 해금` : '조건 달성';
+    return unlockConditionText(d.unlockCondition);
+  }
   if(d?.requiresUnlock) return `${COMPONENTS[d.requiresUnlock]?.name||d.requiresUnlock} 해금 필요`;
   if(d?.unlockFlops){
     if((G.totalCompute||0)<d.unlockFlops) return `누적 ${Math.min(d.unlockFlops,G.totalCompute||0).toFixed(0)} / ${d.unlockFlops.toLocaleString()} FLOPS`;
@@ -4562,6 +6342,14 @@ function unlockText(name){
 function unlockLabel(name){
   const d=COMPONENTS[name];
   if(d?.phase===2&&!G.phase2Unlocked) return 'Phase 2 진입';
+  if(d?.unlockCondition){
+    const c=d.unlockCondition;
+    const bits=[];
+    if(c.processLevel!=null) bits.push(CircuitForgeCore.PROCESS_NODES[c.processLevel]?.name||`공정${c.processLevel}`);
+    if(c.modules) for(const [m,n] of Object.entries(c.modules)) bits.push(`${(CircuitForgeCore.MODULE_DEFS[m]?.label||m).replace(' Module','')}×${n}`);
+    if(c.totalCompute!=null) bits.push(`누적 ${fmtCompute(c.totalCompute)}`);
+    return bits.join(' · ');
+  }
   if(d?.requiresUnlock) return `${COMPONENTS[d.requiresUnlock]?.name||d.requiresUnlock} 해금`;
   if(d?.unlockFlops) return `누적 ${d.unlockFlops.toLocaleString()} FLOPS`;
   return UNLOCKS[d?.unlock]?.label || '';
@@ -4592,6 +6380,7 @@ function checkPhase2Unlock(){
   if(CircuitForgeCore.phase2Ready(conditions)){
     G.phase2Unlocked=true;
     G.phase2TutorialStep=5;
+    if(G.progressionStage==='phase1_basic_circuit') G.progressionStage='phase2_advanced_electronics';
     toast('Phase 2 진입! 시간 부하·방향 보호·증폭·범위 냉각 해금');
     log('Phase 2 부품 설계 조건이 열렸습니다 · Upgrades 탭을 확인하세요');
     buildUpgrades();
@@ -4646,7 +6435,7 @@ function checkVoltageUnlocks(){
 }
 function buyComponentUnlock(name){
   const d=COMPONENTS[name];
-  const fluxCost=PHASE2_FLUX_COSTS[name]||0;
+  const fluxCost=d?.unlockFluxCost ?? PHASE2_FLUX_COSTS[name] ?? 0;
   if(!d?.unlockCost || isComponentUnlocked(name)) return;
   if(unlockProgress(name)<1){ toast(`해금 조건: ${unlockLabel(name)}`); return; }
   if(G.funds<d.unlockCost){ toast('해금 자금 부족'); return; }
@@ -4666,7 +6455,7 @@ function buyComponentUnlock(name){
 function componentUnlockDescription(name){
   const d=COMPONENTS[name];
   const stats=d.kind==='power' ? `${d.vl}V · ${d.amps}A · ${d.ratedPower}W · ` : '';
-  const fluxCost=PHASE2_FLUX_COSTS[name]||0;
+  const fluxCost=d?.unlockFluxCost ?? PHASE2_FLUX_COSTS[name] ?? 0;
   return `${stats}해금 ${fmtMoney(d.unlockCost)}${fluxCost?` + ✦ ${fluxCost}`:''} · Shop ${fmtMoney(d.cost)}`;
 }
 
@@ -4724,6 +6513,11 @@ function showShopComponentTooltip(name,clientX,clientY){
     power:`${vm.volt}V 전원 · 공급 ${d.amps}A`,
     clock:`배율 ×${Math.sqrt(d.frequency||1).toFixed(1)} · 요구 ${d.requiresAmps||0}A`,
     compute:`${d.base} FLOPS · 요구 ${d.requiresAmps||0}A (×${vm.currentMult} = ${((d.requiresAmps||0)*vm.currentMult).toFixed(2)}A @${vm.label})`,
+    memory:`상태 저장 · 요구 ${d.requiresAmps||0}A · 직접 출력 없음 (ALU/CPU 인증용)`,
+    support:d.family==='cache'?`인접 CPU/ALU 칩 출력 +최대 30%(거리 기반) · 요구 ${d.requiresAmps||0}A`
+      :d.family==='vrm'?`CPU 칩 VRM 페널티 해제 · 요구 ${d.requiresAmps||0}A · 발열↑`
+      :d.family==='clocktree'?`Clock 혼합 동기 손실 제거 · 요구 ${d.requiresAmps||0}A`
+      :`지원 부품 · 요구 ${d.requiresAmps||0}A`,
     passive:d.variable ? `가변 Low/Mid/High · 분기 전류·출력·발열 조절` : `분기 전류 ×${d.resistorCurrentMult||1} · 출력 ×${d.resistorOutputMult||1} · 발열 ×${d.resistorHeatMult||1}`,
     feedback:`전류 상태 표시 · 요구 ${d.requiresAmps||0}A`,
     routing:'전류 부하 없음 · 분기 접점',
@@ -4824,10 +6618,6 @@ function componentContribution(name,d,c,cell,onClosedPath){
     const branch=electricalBranchAt(c,cell.anchorX??0,cell.anchorY??0);
     return `해당 분기 Logic 출력 ×${(branch?.transistorOutputMult||1).toFixed(2)}`;
   }
-  if(name==='fan'){
-    const branch=electricalBranchAt(c,cell.anchorX??0,cell.anchorY??0);
-    return `범위 냉각 ${(branch?.supplyRatio||0)*100|0}% 성능`;
-  }
   if(name==='diode') return '정방향 통전 · 역극성 경로 차단';
   return d.effect;
 }
@@ -4890,11 +6680,11 @@ function showBoardComponentTooltip(x,y,clientX,clientY){
     name==='capacitor' ? tooltipRow('저장 전하',
       `${Math.round((cell.capacitorCharge??0)*100)}% · 충전 ${(branch?.chargeDemandAmps||0).toFixed(2)}A · 피크 ${(branch?.capacitorAssistAmps||0).toFixed(2)}A`) : '',
     name==='transistor' ? tooltipRow('분기 증폭',`×${(branch?.transistorOutputMult||1).toFixed(2)}`) : '',
-    name==='fan' ? tooltipRow('냉각 성능',`${Math.round((branch?.supplyRatio||0)*100)}% · 반경 2칸`) : '',
+    cell.fan ? tooltipRow('부착 냉각','Cooling Fan 2×2 · '+((fanSpinMap.get((fanAnchorCovering(anchor[0],anchor[1])||[]).join(','))||0)>0?'회전 중':'정지(전력 없음)')) : '',
     d.ohm!=null ? tooltipRow(d.kind==='power'?'PSU 내부저항':'참고 저항',`${d.ohm}Ω`) : '',
     // 이 부품의 실시간 결과
     tooltipRow('현재 기여',componentContribution(name,d,circuit,cell,onClosedPath)),
-    tooltipRow('부품 온도',`${componentState.temperature.toFixed(1)}°C${componentState.heatsink?' (Heatsink)':''}`),
+    tooltipRow('부품 온도',`${componentState.temperature.toFixed(1)}°C${componentState.heatsink?' (Heatsink)':''}${cell.fan?' (Fan)':''}`),
     tooltipRow('열 기여',operatingNow ? heatText : '0.0 Heat/s'),
   ].join('');
   showComponentTooltip(tooltipShell(d,rows),clientX,clientY);
@@ -4902,8 +6692,37 @@ function showBoardComponentTooltip(x,y,clientX,clientY){
 function showBoardCellTooltip(x,y,clientX,clientY){
   const cell=G.board.cells[idx(x,y)];
   if(cell?.comp){ activeTooltip={kind:'board',x,y,cx:clientX,cy:clientY}; showBoardComponentTooltip(x,y,clientX,clientY); return; }
+  if(cell?.boardHeatsink || cell?.pipe){ activeTooltip={kind:'board',x,y,cx:clientX,cy:clientY}; showThermalTileTooltip(x,y,clientX,clientY); return; }
   if(cell?.wire){ activeTooltip={kind:'board',x,y,cx:clientX,cy:clientY}; showWireTooltip(x,y,clientX,clientY); return; }
   hideComponentTooltip();
+}
+// 보드 히트싱크(방출판)·히트파이프 칸 툴팁 — 방출판 온도 시스템 표시.
+function showThermalTileTooltip(x,y,clientX,clientY){
+  const cell=G.board.cells[idx(x,y)];
+  const ambient=G.board.ambientTemperature;
+  const fanCovered=Boolean(cell.fan);
+  const rows=[];
+  if(cell.boardHeatsink){
+    const t=cell.boardTemp ?? ambient;
+    const state = t>=85 ? '<span class="tooltip-status-bad">과열</span>'
+      : t>=60 ? '<span style="color:#f5c518">가열됨</span>'
+      : '<span class="tooltip-status-ok">정상</span>';
+    rows.push(tooltipRow('방출판 온도',`${t.toFixed(1)}°C · ${state}`));
+    rows.push(tooltipRow('역할','히트파이프로 받은 열을 대기로 방출'+(fanCovered?' · 팬 부착(작동 시 방열↑)':'')));
+  }
+  if(cell.pipe){
+    const g=cell.pipeGrade||1;
+    rows.push(tooltipRow('히트파이프',`등급 ${['','Ⅰ','Ⅱ','Ⅲ'][g]||g} · 전달효율 ×${pipeGradeEff(g).toFixed(1)}`));
+    if(cell.heatsink) rows.push(tooltipRow('연결','부품 히트싱크(열원)에 연결'));
+    else if(cell.boardHeatsink) rows.push(tooltipRow('연결','방출판(보드 히트싱크)에 연결'));
+  }
+  const title=cell.boardHeatsink ? {icon:'▥',name:'보드 히트싱크',category:'방출판',
+      role:'히트파이프가 보낸 열을 대기로 방출합니다. 위에 팬을 얹고 연결된 부품이 작동하면 더 강하게 식습니다.',
+      tip:'부품 히트싱크와 보드 히트싱크를 히트파이프로 이으세요. 방출판이 크고 팬이 있을수록 더 많은 열을 받아낼 수 있습니다.'}
+    : {icon:'┃',name:'히트파이프',category:'열 배관',
+      role:'부품 히트싱크(열원)와 보드 히트싱크(방출판)를 잇는 레이어 2 배관입니다.',
+      tip:'등급이 높고 많이 깔수록 전달 효율이 올라갑니다.'};
+  showComponentTooltip(tooltipShell(title,rows.join('')),clientX,clientY);
 }
 function wireConnectionSides(x,y){
   return DIRECTIONS
@@ -4980,61 +6799,131 @@ function terminalOrientationText(cell){
   return `입력 ${input} · 출력 ${output}`;
 }
 
+function appendShopItem(container,name){
+  const d=COMPONENTS[name];
+  if(!d) return;
+  const starterStock = G.starterStock?.[name] || 0;
+  const inventoryStock = G.inventory?.[name] || 0;
+  const stockLabel = inventoryStock > 0 ? `<div class="stock">재고 ${inventoryStock}개</div>` : '';
+  const price = unitCost(name);
+  const canBuy = starterStock > 0 || G.funds >= price;
+  const el=document.createElement('div');
+  el.className='item'+(G.selected===name?' selected':'');
+  el.dataset.component=name;
+  const qtyId=`compQty_${name}`;
+  const buyControl = starterStock > 0
+    ? `<button ${canBuy?'':'disabled'}>무료 ×${starterStock}</button>`
+    : `<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
+        <input id="${qtyId}" type="number" min="1" max="999" value="1"
+          style="width:42px;background:var(--panel-2);color:var(--text);border:1px solid #2a3138;padding:3px 4px;border-radius:4px;font-size:12px">
+        <button ${canBuy?'':'disabled'}>${fmtMoney(price)}</button>
+      </div>`;
+  el.innerHTML=`<div class="ico" style="background:${d.color}33">${d.icon}</div>
+    <div class="meta"><div class="name">${escapeHtml(d.name)}</div>
+    <div class="desc">${componentDesc(name)}</div>${stockLabel}</div>
+    ${buyControl}`;
+  el.onclick=()=>{
+    const changing=G.selected!==name;
+    G.selected=changing ? name : null;
+    if(changing) G.rotation=0;
+    G.tool=G.selected ? 'place' : 'wire';
+    refreshTools();
+    buildShop();
+    updateSelectionStatus();
+  };
+  const qtyInput=el.querySelector(`#${qtyId}`);
+  const buyBtn=el.querySelector('button');
+  if(qtyInput){
+    const refreshPrice=()=>{
+      const q=Math.max(1,parseInt(qtyInput.value)||1);
+      buyBtn.textContent=fmtMoney(price*q);
+      buyBtn.disabled=G.funds<price*q;
+    };
+    qtyInput.addEventListener('click',e=>e.stopPropagation());
+    qtyInput.addEventListener('input',e=>{ e.stopPropagation(); refreshPrice(); });
+  }
+  buyBtn.onclick=e=>{
+    e.stopPropagation();
+    const q=qtyInput ? Math.max(1,parseInt(qtyInput.value)||1) : 1;
+    buyComponent(name,q);
+  };
+  el.addEventListener('mouseenter',e=>showShopComponentTooltip(name,e.clientX,e.clientY));
+  el.addEventListener('mousemove',e=>showShopComponentTooltip(name,e.clientX,e.clientY));
+  el.addEventListener('mouseleave',hideComponentTooltip);
+  container.appendChild(el);
+}
+// 상점 부품을 계열별로 묶어 한눈에 보이게 한다.
+const SHOP_GROUPS=[
+  {label:'⚡ 전원 · 보호', kinds:['power','protection']},
+  {label:'⏱ 클럭', kinds:['clock']},
+  {label:'▣ 연산 (Logic · Gate)', kinds:['compute']},
+  {label:'🟫 저항 · 제어 · 표시', kinds:['passive','control','feedback','routing']},
+  {label:'❄ 냉각 · 에너지', kinds:['thermal','cooling','storage','amplifier']},
+  {label:'▤ 메모리', kinds:['memory']},
+  {label:'📦 CPU 지원', kinds:['support']},
+];
+// 해금된 부품을 SHOP_GROUPS 계열로 묶어 [{label,names}] 반환(그룹 없는 건 '기타'로).
+function shopGroupsWithItems(){
+  const placed=new Set();
+  const result=[];
+  for(const group of SHOP_GROUPS){
+    const names=SHOP_ORDER.filter(name=>!placed.has(name)
+      && group.kinds.includes(COMPONENTS[name]?.kind)
+      && isComponentUnlocked(name));
+    names.forEach(n=>placed.add(n));
+    if(names.length) result.push({label:group.label,names});
+  }
+  const rest=SHOP_ORDER.filter(name=>!placed.has(name)&&isComponentUnlocked(name));
+  if(rest.length) result.push({label:'📦 기타',names:rest});
+  return result;
+}
+// 부품 상점 상단: 전체 목록 ↔ 분류 탭 보기 전환 + (탭 모드면) 계열 칩.
+function renderShopViewControls(groups){
+  const ctl=document.getElementById('shopViewControls'); if(!ctl) return;
+  const tabbed=Boolean(G.shopTabbedView);
+  let html=`<div style="display:flex;align-items:center;gap:6px;margin:2px 0 6px">
+      <button class="shop-view-toggle${tabbed?' active':''}" id="shopViewToggle">${tabbed?'📑 분류 탭':'📄 전체 목록'}</button>
+      <span style="font-size:10px;color:var(--muted)">${tabbed?'분류별로 나눠 봅니다 (스크롤↓)':'모든 부품을 한 번에 봅니다'}</span>
+    </div>`;
+  if(tabbed){
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">`
+      +groups.map(g=>`<button class="shop-group-chip${g.label===G.shopActiveGroup?' active':''}" data-group="${escapeHtml(g.label)}">${escapeHtml(g.label)} <span style="opacity:.6">${g.names.length}</span></button>`).join('')
+      +`</div>`;
+  }
+  ctl.innerHTML=html;
+  const toggle=document.getElementById('shopViewToggle');
+  if(toggle) toggle.onclick=()=>{ G.shopTabbedView=!G.shopTabbedView; save(); buildShop(); };
+  ctl.querySelectorAll('.shop-group-chip').forEach(b=>{
+    b.onclick=()=>{ G.shopActiveGroup=b.dataset.group; buildShop(); };
+  });
+}
 function buildShop(){
   const list=document.getElementById('shopList'); list.innerHTML='';
-  for(const name of SHOP_ORDER){
-    const d=COMPONENTS[name];
-    const unlocked=isComponentUnlocked(name);
-    if(!unlocked) continue;
-    const starterStock = G.starterStock?.[name] || 0;
-    const inventoryStock = G.inventory?.[name] || 0;
-    const stockLabel = inventoryStock > 0 ? `<div class="stock">재고 ${inventoryStock}개</div>` : '';
-    const price = unitCost(name);
-    const canBuy = starterStock > 0 || G.funds >= price;
-    const el=document.createElement('div');
-    el.className='item'+(G.selected===name?' selected':'');
-    el.dataset.component=name;
-    const qtyId=`compQty_${name}`;
-    const buyControl = starterStock > 0
-      ? `<button ${canBuy?'':'disabled'}>무료 ×${starterStock}</button>`
-      : `<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
-          <input id="${qtyId}" type="number" min="1" max="999" value="1"
-            style="width:42px;background:var(--panel-2);color:var(--text);border:1px solid #2a3138;padding:3px 4px;border-radius:4px;font-size:12px">
-          <button ${canBuy?'':'disabled'}>${fmtMoney(price)}</button>
-        </div>`;
-    el.innerHTML=`<div class="ico" style="background:${d.color}33">${d.icon}</div>
-      <div class="meta"><div class="name">${d.name}</div>
-      <div class="desc">${componentDesc(name)}</div>${stockLabel}</div>
-      ${buyControl}`;
-    el.onclick=()=>{
-      const changing=G.selected!==name;
-      G.selected=changing ? name : null;
-      if(changing) G.rotation=0;
-      G.tool=G.selected ? 'place' : 'wire';
-      refreshTools();
-      buildShop();
-      updateSelectionStatus();
-    };
-    const qtyInput=el.querySelector(`#${qtyId}`);
-    const buyBtn=el.querySelector('button');
-    if(qtyInput){
-      const refreshPrice=()=>{
-        const q=Math.max(1,parseInt(qtyInput.value)||1);
-        buyBtn.textContent=fmtMoney(price*q);
-        buyBtn.disabled=G.funds<price*q;
-      };
-      qtyInput.addEventListener('click',e=>e.stopPropagation());
-      qtyInput.addEventListener('input',e=>{ e.stopPropagation(); refreshPrice(); });
+  const groups=shopGroupsWithItems();
+  renderShopViewControls(groups);
+  if(G.shopTabbedView){
+    // 활성 계열이 사라졌으면 첫 계열로 폴백
+    if(!groups.some(g=>g.label===G.shopActiveGroup)) G.shopActiveGroup=groups[0]?.label||null;
+    const active=groups.find(g=>g.label===G.shopActiveGroup)||groups[0];
+    if(active) for(const name of active.names) appendShopItem(list,name);
+  } else {
+    for(const group of groups){
+      const header=document.createElement('div');
+      header.className='shop-group-label';
+      header.style.cssText='font-size:11px;color:var(--muted);margin:8px 0 2px;font-weight:600';
+      header.textContent=group.label;
+      list.appendChild(header);
+      for(const name of group.names) appendShopItem(list,name);
     }
-    buyBtn.onclick=e=>{
-      e.stopPropagation();
-      const q=qtyInput ? Math.max(1,parseInt(qtyInput.value)||1) : 1;
-      buyComponent(name,q);
-    };
-    el.addEventListener('mouseenter',e=>showShopComponentTooltip(name,e.clientX,e.clientY));
-    el.addEventListener('mousemove',e=>showShopComponentTooltip(name,e.clientX,e.clientY));
-    el.addEventListener('mouseleave',hideComponentTooltip);
-    list.appendChild(el);
+  }
+  // 커스텀 IP 섹션
+  const ipSection=document.getElementById('ipShopSection');
+  const ipList=document.getElementById('ipShop');
+  if(ipSection&&ipList){
+    ipList.innerHTML='';
+    const ips=G.registeredIP||[];
+    ipSection.style.display=ips.length?'block':'none';
+    for(const ip of ips) appendShopItem(ipList,ip.id);
   }
   const gu=document.getElementById('gridUpgrade'); gu.innerHTML='';
   const next=GRID_LEVELS[G.gridLevel+1];
@@ -5063,19 +6952,30 @@ function buildShop(){
   }
   buildWireShop();
 }
+// 배선 행을 클릭하면 그 등급을 바로 활성 배선으로 선택(배선 도구 전환).
+function selectWireGrade(grade){
+  G.selectedWireGrade=Math.max(0,Math.min(grade,G.wireGrade??0));
+  G.tool='wire'; G.selected=null; G.selectedChipId=null;
+  refreshTools(); buildWireShop(); buildShop(); updateSelectionStatus();
+  log(`${WIRE_GRADES[G.selectedWireGrade]?.name||'배선'} 선택 · 드래그해 배선을 그리세요`);
+}
 function buildWireShop(){
   const el=document.getElementById('wireShop'); if(!el) return;
   el.innerHTML='';
   const maxGrade=G.wireGrade??0;
+  const activeGrade=(G.tool==='wire'&&!G.selected)?(G.selectedWireGrade??0):-1;
   for(let grade=0;grade<=maxGrade;grade++){
     const spec=WIRE_GRADES[grade];
     const stock=(G.wireInventory??[])[grade]??0;
     const qtyId=`wireQty${grade}`;
-    const div=document.createElement('div'); div.className='item';
+    const isActive=grade===activeGrade;
+    const div=document.createElement('div'); div.className='item'+(isActive?' selected':'');
+    div.style.cursor='pointer';
+    div.title='클릭해 이 배선을 선택';
     div.innerHTML=`
-      <div class="ico" style="background:#1a2128;font-size:16px">🧵</div>
+      <div class="ico" style="background:${isActive?'#1d3a3f':'#1a2128'};font-size:16px">🧵</div>
       <div class="meta">
-        <div class="name">${spec.name}</div>
+        <div class="name">${spec.name}${isActive?' <span style="color:var(--accent);font-size:11px">● 사용 중</span>':''}</div>
         <div class="desc">${spec.ohm}Ω · ${spec.ampacity}A · 재고 <span id="wireStock${grade}" style="color:var(--accent);font-weight:600">${stock}</span>개</div>
       </div>
       <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
@@ -5085,13 +6985,17 @@ function buildWireShop(){
       </div>`;
     const btn=div.querySelector(`#wireBuy${grade}`);
     const qtyInput=div.querySelector(`#${qtyId}`);
+    // 행 클릭 = 배선 선택. 구매 버튼·수량 입력 클릭은 선택을 트리거하지 않음.
+    div.onclick=()=>selectWireGrade(grade);
+    qtyInput.onclick=e=>e.stopPropagation();
+    btn.onclick=e=>e.stopPropagation();
     const updateBtn=()=>{
       const qty=Math.max(1,parseInt(qtyInput.value)||1);
       btn.textContent=fmtMoney(spec.unitCost*qty);
       btn.disabled=G.funds<spec.unitCost*qty;
     };
     qtyInput.addEventListener('input',updateBtn);
-    btn.onclick=()=>{
+    btn.addEventListener('click',()=>{
       const qty=Math.max(1,parseInt(qtyInput.value)||1);
       const total=spec.unitCost*qty;
       if(G.funds<total){ toast('자금 부족'); return; }
@@ -5102,7 +7006,7 @@ function buildWireShop(){
       buildWireShop();
       refreshWireGradeBar();
       updateHUD();
-    };
+    });
     el.appendChild(div);
   }
 }
@@ -5135,18 +7039,26 @@ function componentDesc(name){
   if(d.kind==='power') return `${vm.volt}V · ${d.amps}A 공급`;
   if(d.kind==='clock') return `배율 ×${Math.sqrt(d.frequency||1).toFixed(1)} · 요구 ${d.requiresAmps||0}A`;
   if(d.kind==='compute') return `${d.base} FLOPS · 요구 ${d.requiresAmps||0}A`;
+  if(d.kind==='memory') return `메모리 · 요구 ${d.requiresAmps||0}A · 직접 출력 없음`;
+  if(d.kind==='support'){
+    if(d.family==='cache') return `인접 CPU/ALU 칩 출력 +최대 30% · 요구 ${d.requiresAmps||0}A`;
+    if(d.family==='vrm') return `CPU 칩 VRM 페널티 해제 · 요구 ${d.requiresAmps||0}A`;
+    if(d.family==='clocktree') return `Clock 혼합 페널티 제거 · 요구 ${d.requiresAmps||0}A`;
+    return `지원 부품 · 요구 ${d.requiresAmps||0}A`;
+  }
   if(d.kind==='passive'){
     if(d.variable) return `가변 Low/Mid/High · 분기 전류·출력·발열 조절`;
     return `분기 전류 ×${d.resistorCurrentMult||1} · 출력 ×${d.resistorOutputMult||1} · 발열 ×${d.resistorHeatMult||1}`;
   }
   if(d.kind==='feedback') return `전류 진단등 · 요구 ${d.requiresAmps||0}A`;
   if(d.kind==='routing') return '4방향 분기 접점 · 전류 부하 없음';
-  if(d.kind==='thermal') return `부품 장착형 · 방열 강화`;
+  if(d.family==='heatpipe') return `열 배관(레이어2) · 전달효율 ×${pipeGradeEff(d.pipeGrade).toFixed(1)} · 부품·히트싱크 위에 배선처럼 배치`;
+  if(d.kind==='thermal') return `부품 위 장착 / 빈 칸=보드 히트싱크`;
   if(d.kind==='control') return `분기 ON/OFF · 요구 ${d.requiresAmps||0}A`;
   if(d.kind==='protection') return `${d.ratedAmps}A 보호 Fuse`;
   if(d.kind==='storage') return `충전 ${d.chargeAmps}A · 부족 시 분기 공급 보완`;
   if(d.kind==='amplifier') return `분기 출력 ×${d.transistorOutputMult} · 요구 ${d.requiresAmps}A`;
-  if(d.kind==='cooling') return `범위 냉각 · 요구 ${d.requiresAmps}A · 2칸`;
+  if(d.kind==='cooling') return `2×2 부착 · 통전 시 면적 냉각 · 방열판과 중첩`;
   return '';
 }
 
@@ -5340,13 +7252,22 @@ document.querySelectorAll('.tabs button').forEach(b=>{
     const tab=b.dataset.tab;
     document.getElementById('tabShop').style.display = tab==='shop'?'block':'none';
     document.getElementById('tabUpgrades').style.display = tab==='upgrades'?'block':'none';
+    document.getElementById('tabBpUpgrade').style.display = tab==='bpupgrade'?'block':'none';
     document.getElementById('tabBlueprints').style.display = tab==='blueprints'?'block':'none';
+    document.getElementById('tabModuleLab').style.display = tab==='modulelab'?'block':'none';
     document.getElementById('tabStats').style.display = tab==='stats'?'block':'none';
     if(tab==='stats') buildStats();
     if(tab==='upgrades') buildUpgrades();
+    if(tab==='bpupgrade') buildBpUpgradeTab();
     if(tab==='blueprints') buildBlueprints();
+    if(tab==='modulelab') buildModuleLab();
   };
 });
+// 어드바이저 액션 버튼이 프로그램적으로 탭을 전환할 때 사용.
+function goToTab(tab){
+  const btn=document.querySelector(`.tabs button[data-tab="${tab}"]`);
+  if(btn) btn.click();
+}
 
 function buyBpUpgrade(key){
   const def=BP_UPGRADES[key];
@@ -5359,7 +7280,7 @@ function buyBpUpgrade(key){
   G.bpUpgrades[key]=level+1;
   toast(`${def.name} 해금!`);
   log(`${def.name} BP 업그레이드 · ${cost} BP 소비`);
-  buildUpgrades();
+  buildBpUpgradeTab();
   buildBlueprints();
   updateHUD();
   save();
@@ -5376,6 +7297,14 @@ function bpUpgradeEffectText(key,level){
   if(key==='startBoard') return `다음 런 ${limits.startSize}×${limits.startSize}`;
   if(key==='starterChoice') return level?'시작 키트 선택 가능':'기본 시작 키트';
   return '';
+}
+function buildBpUpgradeTab(){
+  const el=document.getElementById('tabBpUpgrade');
+  if(!el) return;
+  el.innerHTML='';
+  el.insertAdjacentHTML('beforeend',`<div class="desc" style="color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:6px">
+    여기서 사는 강화는 <strong>Tape-out 후에도 영구히 유지</strong>됩니다(이번 런 한정인 Upgrades 탭과 분리). BP는 Tape-out으로 얻습니다.</div>`);
+  buildBpUpgradeSection(el);
 }
 function buildBpUpgradeSection(el){
   el.insertAdjacentHTML('beforeend',`<h3>BP 영구 설계</h3>
@@ -5398,7 +7327,7 @@ function buildBpUpgradeSection(el){
   if(G.bpUpgrades?.starterChoice){
     el.insertAdjacentHTML('beforeend',`<div class="blueprint-card">
       <strong>다음 런 시작 키트</strong>
-      <div class="blueprint-meta">성능: Logic +1, Junction +1 · 안전: Resistor +1, 5A Fuse +1, 구리선 +10</div>
+      <div class="blueprint-meta">성능: Logic +1, LED +1 · 안전: Resistor +1, 5A Fuse +1, 구리선 +10</div>
       <div class="blueprint-actions">
         <button data-starter-mode="performance" class="${G.starterMode==='performance'?'primary':''}">성능 키트</button>
         <button data-starter-mode="safety" class="${G.starterMode==='safety'?'primary':''}">안전 키트</button>
@@ -5407,7 +7336,7 @@ function buildBpUpgradeSection(el){
     el.querySelectorAll('[data-starter-mode]').forEach(button=>{
       button.onclick=()=>{
         G.starterMode=button.dataset.starterMode;
-        buildUpgrades();
+        buildBpUpgradeTab();
         save();
       };
     });
@@ -5417,9 +7346,14 @@ function buildBpUpgradeSection(el){
 function buildUpgrades(){
   const el=document.getElementById('tabUpgrades');
   el.innerHTML='';
-  buildBpUpgradeSection(el);
-  el.insertAdjacentHTML('beforeend','<h3>부품 설계 해금</h3><div class="desc" style="color:var(--muted);font-size:12px;line-height:1.5">누적 FLOPS 조건을 달성한 뒤 해금 비용을 지불하면 해당 부품이 Shop에서 구매 가능해집니다. 해금과 실제 부품 구매는 별도이며 기존 배치 부품은 바뀌지 않습니다.</div>');
-  for(const name of SHOP_ORDER.filter(component=>COMPONENTS[component]?.unlockCost)){
+  el.insertAdjacentHTML('beforeend','<h3>부품 설계 해금</h3><div class="desc" style="color:var(--muted);font-size:12px;line-height:1.5">조건을 달성한 뒤 해금 비용을 지불하면 Shop에서 구매할 수 있습니다. 먼 미래 부품은 해당 공정 세대에 도달하면 목록에 나타납니다.</div>');
+  const unlockNames=SHOP_ORDER.filter(component=>COMPONENTS[component]?.unlockCost && unlockReachable(component));
+  if(!unlockNames.length){
+    el.insertAdjacentHTML('beforeend','<div class="desc" style="color:var(--muted);font-size:12px">지금 노릴 수 있는 설계 해금이 없습니다. 회로를 발전시키면 새 부품이 열립니다.</div>');
+  }
+  // Shop 탭과 동일한 계열 그룹으로 묶어 한눈에 보이게 한다.
+  const placedUnlock=new Set();
+  const renderUnlockItem=(name)=>{
     const d=COMPONENTS[name];
     const eligible=unlockProgress(name)>=1;
     const owned=isComponentUnlocked(name);
@@ -5433,6 +7367,21 @@ function buildUpgrades(){
       <button ${owned||!canUnlock?'disabled':''}>${owned?'해금됨':eligible?fmtMoney(d.unlockCost):'조건 미달'}</button>`;
     if(!owned) div.querySelector('button').onclick=()=>buyComponentUnlock(name);
     el.appendChild(div);
+  };
+  for(const group of SHOP_GROUPS){
+    const names=unlockNames.filter(name=>!placedUnlock.has(name)
+      && group.kinds.includes(COMPONENTS[name]?.kind));
+    if(!names.length) continue;
+    const header=document.createElement('div');
+    header.className='shop-group-label';
+    header.style.cssText='font-size:11px;color:var(--muted);margin:8px 0 2px;font-weight:600';
+    header.textContent=group.label;
+    el.appendChild(header);
+    for(const name of names){ renderUnlockItem(name); placedUnlock.add(name); }
+  }
+  for(const name of unlockNames){
+    if(placedUnlock.has(name)) continue;
+    renderUnlockItem(name);
   }
   el.insertAdjacentHTML('beforeend','<h3>배선 등급 해금</h3><div class="desc" style="color:var(--muted);font-size:12px;margin-bottom:6px">해금 후 Shop 탭 [배선 구매] 에서 원하는 수량만큼 구매하세요. 삭제한 배선은 회수되지 않습니다.</div>');
   for(let grade=1;grade<WIRE_GRADES.length;grade++){
@@ -5505,6 +7454,45 @@ function refreshComponentUnlockButtons(){
   });
 }
 
+const PROGRESSION_STAGE_LABELS={
+  phase1_basic_circuit:'Phase 1 — 기본 회로',
+  phase2_advanced_electronics:'Phase 2 — 고급 전자',
+  phase3_modules:'Phase 3 — 모듈 통합',
+  phase4_cpu:'Phase 4 — CPU',
+  phase5_gpu:'Phase 5 — GPU',
+  phase6_accelerator:'Phase 6 — AI 가속기',
+  phase7_fab:'Phase 7 — Fab',
+};
+function progressionStageLabel(stage){
+  return PROGRESSION_STAGE_LABELS[stage]||PROGRESSION_STAGE_LABELS.phase1_basic_circuit;
+}
+function processNodeStatLine(){
+  const node=G.processNode||{level:0,xp:0};
+  const spec=CircuitForgeCore.PROCESS_NODES[node.level]||CircuitForgeCore.PROCESS_NODES[0];
+  const effects=CircuitForgeCore.processNodeEffects(node.level);
+  const xpText=Number.isFinite(spec.xpToNext)
+    ? `경험 ${node.xp}/${spec.xpToNext}`
+    : '최고 세대';
+  return `${spec.name} · ${xpText} · Chip 출력 ×${effects.chipOutputMult.toFixed(2)} / 발열 ×${effects.chipHeatMult.toFixed(2)}`;
+}
+function bestTapeoutGradeLabel(){
+  const grade=G.bestTapeoutGrade;
+  if(!grade) return '아직 없음';
+  return `${grade} — ${CircuitForgeCore.TAPEOUT_GRADE_LABELS[grade]||''}`;
+}
+// 보드에 배치된 Gate·메모리 부품 현황(메모리 대역폭/용량 표시 준비)
+function memoryStatLine(){
+  let gates=0,gateTypes=new Set(),memory=0;
+  for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
+    if(!isComponentAnchor(x,y)) continue;
+    const d=COMPONENTS[G.board.cells[idx(x,y)].comp];
+    if(d?.family==='gate'){ gates++; gateTypes.add(G.board.cells[idx(x,y)].comp); }
+    else if(d?.kind==='memory') memory++;
+  }
+  const bonus=CircuitForgeCore.gateDiversityBonus(gateTypes.size);
+  const bonusText=bonus>1?` · 다양성 ×${bonus.toFixed(2)}`:'';
+  return `Gate ${gates}(${gateTypes.size}종)${bonusText} · 메모리 ${memory}`;
+}
 function buildStats(){
   const el=document.getElementById('tabStats');
   const prevScroll=el.scrollTop; // 실시간 갱신 시 스크롤 위치 유지
@@ -5598,6 +7586,11 @@ function buildStats(){
     <div class="statline"><span>전압 사용 비율</span><span class="v">12V ${vtPct('12v')} · 14V ${vtPct('14v')} · 16V ${vtPct('16v')}</span></div>
     <div class="statline"><span>고장 횟수</span><span class="v">${G.burnoutCount||0}회</span></div>
     ${failureRows||'<div class="desc" style="color:var(--muted);font-size:11px">아직 고장이 없습니다.</div>'}
+    <h3>기술 진행</h3>
+    <div class="statline"><span>기술 단계</span><span class="v">${escapeHtml(progressionStageLabel(G.progressionStage))}</span></div>
+    <div class="statline"><span>공정 세대</span><span class="v">${escapeHtml(processNodeStatLine())}</span></div>
+    <div class="statline"><span>최고 Tape-out 등급</span><span class="v">${bestTapeoutGradeLabel()}</span></div>
+    <div class="statline"><span>Gate · 메모리 부품</span><span class="v">${memoryStatLine()}</span></div>
     <h3>회로·자원</h3>
     <div class="statline"><span>총 누적 연산량</span><span class="v">${fmtCompute(G.totalCompute)}</span></div>
     <div class="statline"><span>누적 Tape-out</span><span class="v">${G.tapeoutCount||0}회 · 평생 ${fmtCompute((G.lifetimeCompute||0)+(G.totalCompute||0))}</span></div>
@@ -5736,6 +7729,78 @@ function tutorialStepComplete(step){
   if(step===4) return G.totalCompute>=5;
   return true;
 }
+// "다음 목표" 어드바이저 — 전 시스템을 감시해 지금 할 최선의 행동 1개를 제시.
+function findCertifiableObjective(){
+  for(const bp of G.blueprints||[]){
+    ensureBlueprintAnalysis(bp);
+    const certified=bp.certifiedModules||[];
+    if(!certified.includes('cpu') && CircuitForgeCore.cpuCoreChecklist(cpuCoreInput(bp)).every(Boolean)){
+      return {text:`🏅 "${bp.name}" CPU Core 인증 가능 (예상 ${architectureCertGrade(bp,'cpu').grade}등급)`,
+        hint:'Module Lab에서 인증하면 CPU Chip을 만들 수 있습니다',
+        actionLabel:'Module Lab 열기',action:()=>goToTab('modulelab')};
+    }
+    const input=blueprintModuleInput(bp);
+    if(!certified.includes('alu') && CircuitForgeCore.moduleChecklist(input).alu?.every(Boolean)){
+      return {text:`🏅 "${bp.name}" ALU 인증 가능 (예상 ${architectureCertGrade(bp,'alu').grade}등급)`,
+        hint:'Module Lab의 ALU 섹션에서 인증하세요',
+        actionLabel:'Module Lab 열기',action:()=>goToTab('modulelab')};
+    }
+    const checks=CircuitForgeCore.moduleChecklist(input);
+    const eligible=CircuitForgeCore.moduleEligibility(input);
+    for(const m of CircuitForgeCore.MODULE_ORDER){
+      if(certified.includes(m)) continue;
+      if(checks[m]?.every(Boolean) && eligible[m]){
+        return {text:`🏅 "${bp.name}" ${CircuitForgeCore.MODULE_DEFS[m]?.label||m} 인증 가능`,
+          hint:'Module Lab에서 인증하세요',
+          actionLabel:'Module Lab 열기',action:()=>goToTab('modulelab')};
+      }
+    }
+  }
+  return null;
+}
+function findIpObjective(){
+  for(const bp of G.blueprints||[]){
+    if(blueprintIpEligibility(bp).ok){
+      return {text:`❖ "${bp.name}" IP 등록 가능 — 영구 Compute 부품으로 등록하세요`,
+        hint:'Module Lab 하단 IP 등록에서 Shop에 반복 배치 가능한 부품으로 만듭니다',
+        actionLabel:'Module Lab 열기',action:()=>goToTab('modulelab')};
+    }
+  }
+  return null;
+}
+function findUnlockObjective(){
+  for(const name of SHOP_ORDER){
+    const d=COMPONENTS[name];
+    if(!d?.unlockCost || isComponentUnlocked(name) || !unlockReachable(name)) continue;
+    if(unlockProgress(name)<1) continue;
+    const afford=(G.funds||0)>=d.unlockCost;
+    return {text:`🔓 "${d.name}" 설계 해금 가능${afford?'':' (자금 부족)'}`,
+      hint:`Upgrades 탭에서 ${fmtMoney(d.unlockCost)}로 해금합니다`,
+      actionLabel:'Upgrades 열기',action:()=>goToTab('upgrades')};
+  }
+  return null;
+}
+function nextObjective(){
+  const faults=collectPermanentFaults();
+  if(faults.total){
+    return {text:`⚠ 영구 고장 ${faults.total}개 — 폐기 후 재배치가 필요합니다`,
+      hint:`위치 ${faults.locations.slice(0,2).join(', ')} · 원인(과열·과전류·역극성)을 제거하고 다시 지으세요`};
+  }
+  const hot=G.hottestTemperature||0;
+  if(hot>=85){
+    return {text:`🔥 최고 온도 ${hot.toFixed(0)}°C — 냉각이 필요합니다`,
+      hint:'Heatsink/Fan 부착 · Clock 등급↓ · 16V 회피로 발열을 낮추세요'};
+  }
+  return findCertifiableObjective()
+    || findIpObjective()
+    || findUnlockObjective()
+    || (((G.totalCompute||0)>=TAPEOUT_TARGET_COMPUTE)
+      ? {text:'🎉 Tape-out 목표 도달! 헤더의 Tape-out으로 BP·공정 경험치를 획득하세요',
+         hint:'실행 전 모달에서 예상 등급 D~S와 점수를 확인할 수 있습니다'}
+      : (()=>{const pct=Math.min(100,(G.totalCompute||0)/TAPEOUT_TARGET_COMPUTE*100);
+          return {text:`다음 목표: Tape-out 누적 ${fmtCompute(G.totalCompute||0)} / ${fmtCompute(TAPEOUT_TARGET_COMPUTE)} (${pct.toFixed(1)}%)`,
+            hint:'Clock 등급·전압·부품 밀도를 높여 출력을 끌어올리세요. 막히면 헤더 📖 가이드 참고'};})());
+}
 function updateTutorial(){
   let advanced=false;
   while(G.tutorialStep<TUTORIAL_STEPS.length && tutorialStepComplete(G.tutorialStep)){
@@ -5748,24 +7813,43 @@ function updateTutorial(){
   const title=document.getElementById('tutorialTitle');
   const copy=document.getElementById('tutorialCopy');
   const bar=document.getElementById('tutorialProgressBar');
+  const checklist=document.getElementById('phase2Checklist');
+  if(checklist) checklist.innerHTML='';   // 기본은 비움
   if(G.tutorialStep>=TUTORIAL_STEPS.length&&!G.phase2Unlocked){
     const conditions=phase2Conditions();
+    const done=Object.values(conditions).filter(Boolean).length;
     const index=PHASE2_TUTORIAL_STEPS.findIndex(step=>!conditions[step.key]);
     G.phase2TutorialStep=index<0?PHASE2_TUTORIAL_STEPS.length:index;
     if(index>=0){
-      const step=PHASE2_TUTORIAL_STEPS[index];
-      label.textContent=`Phase 2 준비 ${Object.values(conditions).filter(Boolean).length}/${PHASE2_TUTORIAL_STEPS.length}`;
-      title.textContent=step.title;
-      copy.textContent=step.copy;
-      bar.style.width=`${Object.values(conditions).filter(Boolean).length/PHASE2_TUTORIAL_STEPS.length*100}%`;
+      label.textContent=`Phase 2 준비 ${done}/${PHASE2_TUTORIAL_STEPS.length}`;
+      title.textContent='Phase 2 진입 조건';
+      copy.textContent='아래 5가지를 모두 보드에 적용하면 Phase 2가 열립니다(Capacitor·Diode·Transistor·Cooling Fan 해금).';
+      bar.style.width=`${done/PHASE2_TUTORIAL_STEPS.length*100}%`;
+      if(checklist){
+        checklist.innerHTML='<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">'
+          +PHASE2_TUTORIAL_STEPS.map(step=>{
+            const ok=conditions[step.key];
+            return `<div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;line-height:1.4">
+              <span style="color:${ok?'#7fd99a':'#c97f7f'};flex-shrink:0">${ok?'✓':'✗'}</span>
+              <span style="color:${ok?'var(--muted)':'var(--text)'}">${escapeHtml(step.title)}<br>
+                <span style="color:var(--muted);font-size:11px">${escapeHtml(step.copy)}</span></span>
+            </div>`;
+          }).join('')+'</div>';
+      }
       return;
     }
   }
   if(G.tutorialStep>=TUTORIAL_STEPS.length&&G.phase2Unlocked){
-    label.textContent='Phase 2 해금';
-    title.textContent='고급 전기 설계';
-    copy.textContent='Capacitor, Diode, Transistor, Cooling Fan 설계를 Upgrades에서 해금해 시간 부하·방향 보호·분기 증폭·범위 냉각을 실험하세요.';
+    const obj=nextObjective();
+    label.textContent='다음 목표';
+    title.textContent=obj.text;
+    copy.textContent=obj.hint||'';
     bar.style.width='100%';
+    if(checklist && obj.actionLabel && obj.action){
+      checklist.innerHTML='<div style="margin-top:8px"><button class="primary" id="advisorAction"></button></div>';
+      const b=document.getElementById('advisorAction');
+      if(b){ b.textContent=obj.actionLabel; b.onclick=obj.action; }
+    }
     return;
   }
   if(G.tutorialStep>=TUTORIAL_STEPS.length){
@@ -5803,18 +7887,16 @@ function updateCircuitIssues(){
       issues.push(`영구 고장 ${faultSummary.total}개 · 영향 분기 ${faultSummary.branchCount}개 · ${faultSummary.locations.slice(0,2).join(', ')}`);
     }
     if(thermalIssue) issues.push(thermalIssue);
-    if(circuits.invalidWireBranches?.length) issues.push(`일반 전선 분기 ${circuits.invalidWireBranches.length}곳 · Junction 필요`);
-    if(circuits.invalidContacts?.length) issues.push(`단자 방향 불일치 ${circuits.invalidContacts.length}곳`);
-    if(circuits.junctionWarnings?.length) issues.push(`Junction 연결 부족 ${circuits.junctionWarnings.length}곳`);
+    if(circuits.invalidContacts?.length) issues.push(`단자 방향 불일치 ${circuits.invalidContacts.length}곳 · 부품을 회전해 +/− 면을 맞추세요`);
     withComponents.forEach((c,i)=>{
       if(!c.valid) issues.push(`회로 ${i+1}: ${c.reason}`);
-      else if(!c.allSwitchesOn) issues.push(`회로 ${i+1}: Switch OFF`);
-      else if(c.electrical.branches.some(branch=>branch.shortCircuit)) issues.push(`회로 ${i+1}: 분기 단락 감지`);
+      else if(!c.allSwitchesOn) issues.push(`회로 ${i+1}: Switch OFF · Switch를 켜세요`);
+      else if(c.electrical.branches.some(branch=>branch.shortCircuit)) issues.push(`회로 ${i+1}: 분기 단락 감지 · 부품 없는 전선 단락 경로를 끊으세요`);
       else if(c.electrical.diodeFaults?.size) issues.push(`회로 ${i+1}: Diode 역방향 ${c.electrical.diodeFaults.size}개 · 회전해 전류 방향을 맞추세요`);
-      else if(c.electrical.polarityFaults?.size) issues.push(`회로 ${i+1}: +/− 극성 반대 ${c.electrical.polarityFaults.size}개`);
-      else if(c.electrical.branches.some(branch=>branch.openFailure)) issues.push(`회로 ${i+1}: 분기 개방 감지`);
+      else if(c.electrical.polarityFaults?.size) issues.push(`회로 ${i+1}: +/− 극성 반대 ${c.electrical.polarityFaults.size}개 · 부품을 회전하세요`);
+      else if(c.electrical.branches.some(branch=>branch.openFailure)) issues.push(`회로 ${i+1}: 분기 개방 감지 · 끊긴 배선/단자를 이으세요`);
       else if(c.electrical.branches.some(branch=>branch.disabled)) issues.push(`회로 ${i+1}: 분기 신호 이상`);
-      else if(c.electrical.branches.some(branch=>!branch.operating)) issues.push(`회로 ${i+1}: 전력 공급 없음`);
+      else if(c.electrical.branches.some(branch=>!branch.operating)) issues.push(`회로 ${i+1}: 전력 공급 없음 · PSU와 닫힌 루프를 구성하세요`);
       else if(c.electrical.branches.some(branch=>branch.currentLimited)) issues.push(`회로 ${i+1}: PSU 전류 부족 · ${(c.electrical.totalDemandAmps||0).toFixed(2)}A 수요 / ${(c.electrical.psuCapacityAmps||0).toFixed(1)}A 공급 (${((c.electrical.supplyRatio||1)*100).toFixed(0)}%) — PSU 증설 필요`);
       else if(c.electrical.branches.some(branch=>branch.undervoltage)) issues.push(`회로 ${i+1}: 전류 부족 · 출력 감소 (PSU 용량 부족)`);
       if(c.offPathCompCount>0) issues.push(`회로 ${i+1}: 경로 밖 부품 ${c.offPathCompCount}개`);
@@ -5834,8 +7916,7 @@ function updateCircuitIssues(){
     });
     html=issues.length
       ? issues.slice(0,3).map(text=>{
-          const warning=text.includes('경로 밖 부품') || text.includes('Junction 연결 부족')
-            || text.includes('Heat 주의');
+          const warning=text.includes('경로 밖 부품') || text.includes('Heat 주의');
           return `<div class="circuit-issue${warning?' circuit-warning':''}">${warning?'△':'!'} ${text}</div>`;
         }).join('')
       : `<div class="circuit-issue circuit-ok">✓ 유효 회로 ${withComponents.length}개 작동 중</div>`;
@@ -6013,6 +8094,29 @@ function currentTapeoutReward(){
     hasParallel,
   });
 }
+function currentTapeoutScore(){
+  const manual=circuits.filter(c=>c.valid&&circuitIsManual(c));
+  const effs=manual.map(c=>c.wireEff||0);
+  const avgEfficiency=effs.length?effs.reduce((a,b)=>a+b,0)/effs.length:0;
+  const maxEfficiency=effs.length?Math.max(...effs):0;
+  let rateSum=0,cellSum=0;
+  for(const c of manual){
+    rateSum+=c.rate||0;
+    cellSum+=(c.activeComps?.length||0)+(c.wires||0);
+  }
+  const densityPerCell=cellSum>0?rateSum/cellSum:0;
+  const maxChipDepth=(availableTapeoutChips()).reduce((m,chip)=>Math.max(m,chip.depth||1),0);
+  return CircuitForgeCore.tapeoutScore({
+    totalCompute:G.totalCompute,
+    target:TAPEOUT_TARGET_COMPUTE,
+    avgEfficiency,maxEfficiency,
+    hottestTemp:G.hottestTemperature||G.board.ambientTemperature,
+    burnoutCount:G.burnoutCount||0,
+    blueprintCount:G.blueprints.length,
+    chipCount:(G.chipInventory||[]).length,
+    densityPerCell,maxChipDepth,
+  });
+}
 function availableTapeoutChips(){
   const chips=new Map((G.chipInventory||[]).map(chip=>[chip.id,cloneData(chip)]));
   for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
@@ -6037,20 +8141,32 @@ function openTapeout(){
         ${availableChips.map(chip=>`
           <label style="display:flex;gap:7px;align-items:center;margin-top:6px;padding:6px;background:#10171c;border-radius:4px">
             <input type="checkbox" data-carry-chip="${chip.id}" ${(G.carriedChipIds||[]).includes(chip.id)?'checked':''}>
-            <span>${escapeHtml(chip.name)} · ${fmtCompute(chip.base)} · 깊이 ${chip.depth}</span>
+            <span>${escapeHtml(chip.name)} · ${CircuitForgeCore.CHIP_QUALITY_LABELS[chip.quality]||'Crude'} · ${fmtCompute(chip.base)} · 깊이 ${chip.depth}</span>
           </label>`).join('')}
       </div>`
     : limits.chipCarrySlots>0
       ? `<div class="tapeout-warning">Chip 이월 슬롯은 열렸지만 보유하거나 배치한 정상 Chip이 없습니다. Blueprints에서 ✦ ${CHIP_COMPRESSION_FLUX_COST}로 생성하세요.</div>`
       : '<div class="tapeout-warning">Chip 이월 슬롯을 BP로 해금하면 실제 1×1 Chip을 다음 런에 가져갈 수 있습니다.</div>';
+  const score=currentTapeoutScore();
+  const grade=CircuitForgeCore.tapeoutGrade(score.total);
+  const gradeLabel=CircuitForgeCore.TAPEOUT_GRADE_LABELS[grade]||'';
+  const node=G.processNode||{level:0,xp:0};
+  const xpGain=CircuitForgeCore.processXpGain(grade);
+  const nodeName=CircuitForgeCore.PROCESS_NODES[node.level]?.name||'';
   document.getElementById('tapeoutSummary').innerHTML=`
     <div class="tapeout-summary">
-      누적 ${fmtCompute(G.totalCompute)} · 예상 보상 <strong>🔵 ${reward.total} BP</strong>
+      누적 ${fmtCompute(G.totalCompute)} · 예상 등급 <strong>${grade} — ${escapeHtml(gradeLabel)}</strong> (${Math.round(score.total)}점)
       <div class="tapeout-grid">
-        <span>기본 보상</span><strong>${reward.base} BP</strong>
-        <span>Phase 2 경험</span><strong>${reward.phase2} BP</strong>
-        <span>Blueprint 저장</span><strong>${reward.blueprint} BP</strong>
-        <span>병렬 회로 경험</span><strong>${reward.parallel} BP</strong>
+        <span>Compute 점수</span><strong>${Math.round(score.computeScore)}</strong>
+        <span>효율 점수</span><strong>${Math.round(score.efficiencyScore)}</strong>
+        <span>열 안정성 점수</span><strong>${Math.round(score.thermalScore)}</strong>
+        <span>밀도 점수</span><strong>${Math.round(score.densityScore)}</strong>
+        <span>Blueprint 점수</span><strong>${Math.round(score.blueprintScore)}</strong>
+      </div>
+      <div class="tapeout-grid" style="margin-top:8px">
+        <span>예상 보상</span><strong>🔵 ${reward.total} BP</strong>
+        <span>└ 기본 / P2 / BP / 병렬</span><strong>${reward.base}/${reward.phase2}/${reward.blueprint}/${reward.parallel}</strong>
+        <span>공정 세대</span><strong>${escapeHtml(nodeName)} (+${xpGain} 경험)</strong>
         <span>다음 런 시작</span><strong>${limits.startSize}×${limits.startSize} · ${fmtMoney(limits.headStartFunds)}</strong>
         <span>Chip 이월 슬롯</span><strong>${limits.chipCarrySlots}개</strong>
       </div>
@@ -6068,9 +8184,32 @@ function closeTapeout(){
   tapeoutModal.classList.remove('open');
   tapeoutModal.setAttribute('aria-hidden','true');
 }
-function applyTapeoutReset(reward,selectedChips=[]){
+function applyTapeoutReset(reward,selectedChips=[],score=null){
   const limits=CircuitForgeCore.prestigeLimits(G.bpUpgrades);
   const completedCompute=G.totalCompute||0;
+  const finalScore=score||currentTapeoutScore();
+  const grade=CircuitForgeCore.tapeoutGrade(finalScore.total);
+  // 공정 경험치 누적 → 레벨업 시 알림
+  const nodeBefore=G.processNode||{level:0,xp:0};
+  const nodeResult=CircuitForgeCore.applyProcessXp(nodeBefore,grade);
+  G.processNode={level:nodeResult.level,xp:nodeResult.xp};
+  if(nodeResult.leveledUp>0){
+    const name=CircuitForgeCore.PROCESS_NODES[nodeResult.level]?.name||'';
+    toast(`공정 세대 상승 · ${name}`);
+    log(`Tape-out ${grade}등급 → 공정 세대 ${name} 도달`);
+  }
+  G.bestTapeoutGrade=CircuitForgeCore.higherTapeoutGrade(G.bestTapeoutGrade,grade);
+  G.tapeoutGradeHistory=[
+    {at:Date.now(),grade,total:Math.round(finalScore.total),
+      breakdown:{
+        compute:Math.round(finalScore.computeScore),
+        efficiency:Math.round(finalScore.efficiencyScore),
+        thermal:Math.round(finalScore.thermalScore),
+        density:Math.round(finalScore.densityScore),
+        blueprint:Math.round(finalScore.blueprintScore),
+      }},
+    ...(G.tapeoutGradeHistory||[]),
+  ].slice(0,20);
   const preservedFlux=G.flux||0;
   const preservedBlueprints=G.blueprints;
   const preservedAchievements=G.achievements;
@@ -6093,7 +8232,8 @@ function applyTapeoutReset(reward,selectedChips=[]){
   G.selectedChip=null;
   G.carriedChipIds=selectedChips.map(chip=>chip.id);
   G.tapeoutHistory=[
-    {at:Date.now(),compute:completedCompute,bp:reward.total,chips:selectedChips.map(chip=>chip.name)},
+    {at:Date.now(),compute:completedCompute,bp:reward.total,grade,
+      chips:selectedChips.map(chip=>chip.name)},
     ...(G.tapeoutHistory||[]),
   ].slice(0,20);
   Object.assign(G,{
@@ -6118,6 +8258,7 @@ function applyTapeoutReset(reward,selectedChips=[]){
     blueprints:preservedBlueprints,blueprintGuide:null,blueprintPlacement:null,
     autoSolderQueue:[],autoSolderHistory:preservedHistory,nextAutoJobId:1,
     tutorialStep:0,phase2TutorialStep:0,phase2Unlocked:false,
+    progressionStage:'phase1_basic_circuit',
     unlocked:{},
     unlockNotified:{},peakHeat:0,heatState:'normal',burnoutCount:0,
     failureCauses:{},voltageTime:{'12v':0,'14v':0,'16v':0},
@@ -6137,7 +8278,7 @@ function performTapeout(){
   }
   const available=new Map(availableTapeoutChips().map(chip=>[chip.id,chip]));
   const selectedChips=selectedIds.map(id=>available.get(id)).filter(Boolean);
-  applyTapeoutReset(reward,selectedChips);
+  applyTapeoutReset(reward,selectedChips,currentTapeoutScore());
   closeTapeout();
   save();
   location.reload();
@@ -6178,7 +8319,8 @@ document.addEventListener('keydown', e=>{
   }
   if(e.key==='r' || e.key==='R'){ rotateSelection(); return; }
   if(e.key==='Escape'){
-    if(helpModal.classList.contains('open')) closeHelp();
+    if(chipInventoryModal.classList.contains('open')) closeChipInventory();
+    else if(helpModal.classList.contains('open')) closeHelp();
     else if(settingsModal.classList.contains('open')) closeSettings();
     else if(G.selected) cancelSelection();
     return;
@@ -6242,6 +8384,12 @@ function save(){
     nextChipId:G.nextChipId,
     tapeoutHistory:G.tapeoutHistory,
     tapeoutReadyNotified:G.tapeoutReadyNotified,
+    progressionStage:G.progressionStage,
+    processNode:G.processNode,
+    tapeoutGradeHistory:G.tapeoutGradeHistory,
+    bestTapeoutGrade:G.bestTapeoutGrade,
+    registeredIP:G.registeredIP,
+    nextIpId:G.nextIpId,
     activeLayerVersion:G.activeLayerVersion,
     fluxLog:G.fluxLog, fluxBlueprintSlots:G.fluxBlueprintSlots,
     compressedBlueprintIds:G.compressedBlueprintIds,
@@ -6250,6 +8398,7 @@ function save(){
     challengeHistory:G.challengeHistory,
     efficiencyAudit:G.efficiencyAudit, auditRewarded:G.auditRewarded,
     viewMode:G.viewMode,
+    shopTabbedView:G.shopTabbedView,
     lastRate:G.computeRate||0, lastSavedAt:Date.now(),
   })); }catch(e){}
 }
@@ -6268,14 +8417,15 @@ function load(){
     const loadedVoltage = s.circuitVoltage && VOLTAGE_MODES[s.circuitVoltage] ? s.circuitVoltage : '12v';
     const loadedUnlockedVoltage = s.unlockedVoltage || {'12v':true,'14v':false,'16v':false};
     loadedUnlockedVoltage['12v'] = true; // 12v는 항상 해금
-    const meta=CircuitForgeCore.migrateMetaV2(s);
+    const meta=CircuitForgeCore.migrateMetaV3(s);
     const activeLayer=CircuitForgeCore.migrateActiveLayerV1(s);
     Object.assign(G, {funds:s.funds||0, flux:s.flux||0, bp:meta.bp, totalCompute:s.totalCompute||0,
       conductorCap:WIRE_GRADES[migratedWireGrade].cap,
       wireGrade:migratedWireGrade, selectedWireGrade:loadedSelGrade,
-      wireInventory:loadedInventory, electricalVersion:7, metaVersion:2, faultVersion:1,
+      wireInventory:loadedInventory, electricalVersion:7, metaVersion:3, faultVersion:1,
       economyRate:s.economyRate||0.25, gridLevel:s.gridLevel||0,
       viewMode:s.viewMode==='heat'?'heat':'basic',
+      shopTabbedView:Boolean(s.shopTabbedView),
       circuitVoltage:loadedVoltage, unlockedVoltage:loadedUnlockedVoltage,
       voltageNotified:s.voltageNotified||{'14v':false,'16v':false},
       fluxFirsts:s.fluxFirsts||{}, starterStock:s.starterStock||{},
@@ -6310,6 +8460,12 @@ function load(){
       nextChipId:meta.nextChipId,
       tapeoutHistory:meta.tapeoutHistory,
       tapeoutReadyNotified:Boolean(s.tapeoutReadyNotified),
+      progressionStage:meta.progressionStage,
+      processNode:meta.processNode,
+      tapeoutGradeHistory:meta.tapeoutGradeHistory,
+      bestTapeoutGrade:meta.bestTapeoutGrade,
+      registeredIP:meta.registeredIP,
+      nextIpId:meta.nextIpId,
       activeLayerVersion:activeLayer.activeLayerVersion,
       fluxLog:activeLayer.fluxLog,
       fluxBlueprintSlots:activeLayer.fluxBlueprintSlots,
@@ -6325,14 +8481,55 @@ function load(){
       return match?Math.max(max,Number(match[1])):max;
     },0);
     G.nextChipId=Math.max(G.nextChipId||1,largestChipNumber+1);
+    for(const bp of G.blueprints) ensureBlueprintAnalysis(bp);
+    registerIpComponents(); // 보드 셀(comp='ip-*')이 해석되도록 카탈로그에 먼저 주입
+    // Junction 폐지: 재고/스타터에 남은 Junction 제거(전선 분기로 대체됨).
+    if(G.inventory?.junction) delete G.inventory.junction;
+    if(G.starterStock?.junction) delete G.starterStock.junction;
+    // 전원 개편 롤백: 구버전 connector/regulator/소스 상태를 원래 PSU 모델로 되돌린다.
+    const rollbackPsu=(COMPONENTS[s.activeSource]?.kind==='power')?s.activeSource:'battery';
+    if(G.starterStock?.connector){ G.starterStock.battery=(G.starterStock.battery||0)+G.starterStock.connector; delete G.starterStock.connector; }
+    if(G.inventory?.connector){ G.inventory.battery=(G.inventory.battery||0)+G.inventory.connector; delete G.inventory.connector; }
+    if(G.inventory?.regulator) delete G.inventory.regulator;
+    if(G.starterStock?.regulator) delete G.starterStock.regulator;
+    delete G.ownedSources; delete G.activeSource;
     if(s.board && s.board.cells){
       G.board=s.board;
       if(G.board.ambientTemperature==null) G.board.ambientTemperature=22;
       const legacyTemperature=Math.max(G.board.ambientTemperature,Math.min(95,G.board.heat||G.board.ambientTemperature));
       const legacyWires=[];
       const legacyHeatsinks=new Set();
+      const legacyFans=new Set();
       for(let y=0;y<G.board.size;y++) for(let x=0;x<G.board.size;x++){
         const cell=G.board.cells[idx(x,y)];
+        // 전원 개편 롤백: 보드 위 connector → PSU 타일(옛 활성 소스 등급/기본 battery)로 복원.
+        if(cell.comp==='connector') cell.comp=rollbackPsu;
+        // 폐지된 regulator → 통전 유지를 위해 4방향 전선으로 변환.
+        if(cell.comp==='regulator'){
+          Object.assign(cell,{
+            wire:true,wireDirs:15,comp:null,on:true,rotation:0,anchorX:null,anchorY:null,
+            terminalLayout:null,chipData:null,automated:false,
+            burned:false,faultCode:null,faultTemperature:null,faultCurrent:null,faultComponent:null,
+            wireGrade:cell.wireGrade??migratedWireGrade,
+            wireTemperature:G.board.ambientTemperature,wireBurned:false,
+            wireFaultCode:null,wireFaultTemperature:null,wireFaultCurrent:null,
+            heatsink:false,fan:false,fanAnchor:false,
+          });
+          continue;
+        }
+        // 구버전 Junction → 4방향 전선으로 변환(폐지됨). 같은 접점 연결을 전선만으로 유지.
+        if(cell.comp==='junction'){
+          Object.assign(cell,{
+            wire:true,wireDirs:15,comp:null,on:true,rotation:0,anchorX:null,anchorY:null,
+            terminalLayout:null,chipData:null,automated:false,
+            burned:false,faultCode:null,faultTemperature:null,faultCurrent:null,faultComponent:null,
+            wireGrade:cell.wireGrade??migratedWireGrade,
+            wireTemperature:G.board.ambientTemperature,wireBurned:false,
+            wireFaultCode:null,wireFaultTemperature:null,wireFaultCurrent:null,
+            heatsink:false,fan:false,fanAnchor:false,
+          });
+          continue;
+        }
         if(cell.comp==='heatsink'){
           legacyHeatsinks.add(`${cell.anchorX??x},${cell.anchorY??y}`);
           Object.assign(cell,{
@@ -6342,6 +8539,19 @@ function load(){
             automated:false,
             burned:false,faultCode:null,faultTemperature:null,faultCurrent:null,faultComponent:null,
             temperature:G.board.ambientTemperature,heatsink:false,
+          });
+          continue;
+        }
+        // 구버전(1×2 회로 부품) Cooling Fan → 부착형으로 전환되었으므로 셀을 비우고 재고 환불.
+        if(cell.comp==='fan'){
+          legacyFans.add(`${cell.anchorX??x},${cell.anchorY??y}`);
+          Object.assign(cell,{
+            wire:false,wireDirs:0,comp:null,on:true,rotation:0,anchorX:null,anchorY:null,
+            terminalLayout:null,
+            chipData:null,
+            automated:false,
+            burned:false,faultCode:null,faultTemperature:null,faultCurrent:null,faultComponent:null,
+            temperature:G.board.ambientTemperature,heatsink:false,fan:false,fanAnchor:false,
           });
           continue;
         }
@@ -6366,6 +8576,12 @@ function load(){
         if(cell.faultComponent==null && cell.burned && cell.comp) cell.faultComponent=cell.comp;
         if(cell.temperature==null) cell.temperature=legacyTemperature;
         if(cell.heatsink==null) cell.heatsink=false;
+        if(cell.boardHeatsink==null) cell.boardHeatsink=false;
+        if(cell.boardTemp==null) cell.boardTemp=G.board.ambientTemperature;
+        if(cell.pipe==null){ cell.pipe=false; cell.pipeDirs=0; cell.pipeGrade=0; cell.pipeCapacity=0; cell.pipeName=null; }
+        if(cell.pipe && cell.pipeDirs==null) cell.pipeDirs=0;
+        if(cell.fan==null) cell.fan=false;
+        if(cell.fanAnchor==null) cell.fanAnchor=false;
         if(cell.overloadSeconds==null) cell.overloadSeconds=0;
         if(cell.comp==='capacitor'&&cell.capacitorCharge==null) cell.capacitorCharge=0;
         if(cell.comp!=='capacitor') cell.capacitorCharge=null;
@@ -6392,7 +8608,11 @@ function load(){
       if(legacyHeatsinks.size){
         G.inventory.heatsink=(G.inventory.heatsink||0)+legacyHeatsinks.size;
       }
-      G.board.thermalVersion=3;
+      if(legacyFans.size){
+        G.inventory.fan=(G.inventory.fan||0)+legacyFans.size;
+        log(`구버전 Cooling Fan ${legacyFans.size}개를 부착형 재고로 환불했습니다`);
+      }
+      G.board.thermalVersion=4;
       delete G.board.heat;
       delete G.board.maxHeat;
       delete G.board.heatCapacity;
